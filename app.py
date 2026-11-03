@@ -7,7 +7,7 @@ st.set_page_config(page_title="Simulatore Flusso di Cassa Fotovoltaico", layout=
 st.title("⚡ Simulatore Flusso di Cassa Fotovoltaico in Noleggio Operativo")
 
 # ---------------------------------------------------------
-# 0. FOGLIO ANAGRAFICA & DATI CLIENTE
+# 0. FOGLIO ANAGRAFICA & DATI OFFERTA
 # ---------------------------------------------------------
 st.header("📄 Anagrafica e Dati Offerta")
 
