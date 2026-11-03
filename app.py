@@ -7,9 +7,47 @@ st.set_page_config(page_title="Simulatore Flusso di Cassa Fotovoltaico", layout=
 st.title("⚡ Simulatore Flusso di Cassa Fotovoltaico in Noleggio Operativo")
 
 # ---------------------------------------------------------
-# 1. ANAGRAFICA CLIENTE E DETRAZIONE FISCALE MEDIA
+# 0. FOGLIO ANAGRAFICA & DATI CLIENTE
 # ---------------------------------------------------------
-st.sidebar.header("📋 Anagrafica Cliente & Inquadramento Fiscale")
+st.header("📄 Anagrafica e Dati Offerta")
+
+col_a1, col_a2, col_a3 = st.columns([3, 1, 1])
+with col_a1:
+    st.markdown("**OFFERTA PRELIMINARE PER IL NOLEGGIO DI UN IMPIANTO FOTOVOLTAICO DA:**")
+with col_a2:
+    potenza_kwp = st.number_input("kWp", value=30.0, step=1.0, label_visibility="collapsed")
+with col_a3:
+    st.markdown("**kWp**")
+
+col_b1, col_b2 = st.columns([3, 2])
+with col_b1:
+    st.markdown("**PER AUTOCONSUMO DI ENERGIA** *(Campo descrittivo fisso)*")
+with col_b2:
+    autoconsumo_nota = st.text_input("Note Autoconsumo", value="", placeholder="Inserisci eventuale nota...", label_visibility="collapsed")
+
+st.markdown("---")
+
+col_c1, col_c2 = st.columns(2)
+with col_c1:
+    azienda = st.text_input("AZIENDA (Nome Cliente / Ragione Sociale)", value="", placeholder="Inserisci nome azienda...")
+    indirizzo = st.text_input("INDIRIZZO", value="", placeholder="Via / Piazza e civico...")
+with col_c2:
+    citta = st.text_input("CITTA'", value="", placeholder="Città...")
+    
+col_d1, col_d2, col_d3 = st.columns([2, 1, 1])
+with col_d1:
+    cap = st.text_input("CAP", value="", placeholder="CAP")
+with col_d2:
+    prov = st.text_input("PROV.", value="", placeholder="Provincia")
+with col_d3:
+    data_offerta = st.date_input("DATA", value=pd.to_datetime("today"))
+
+st.markdown("---")
+
+# ---------------------------------------------------------
+# 1. ANAGRAFICA FISCALE E REGIONALE
+# ---------------------------------------------------------
+st.sidebar.header("📋 Inquadramento Fiscale")
 
 regioni_db = {
     "Abruzzo": {"irap": 0.0390, "add_reg_min": 0.0173, "add_reg_max": 0.0333},
@@ -47,23 +85,17 @@ forma_giuridica = st.sidebar.selectbox(
 regione = st.sidebar.selectbox("Regione di Appartenenza", list(regioni_db.keys()))
 add_comunale = st.sidebar.number_input("Addizionale Comunale (%)", value=0.8, step=0.1) / 100.0
 
-# Calcolo del Coefficiente Unico Fiscale
 def calcola_coefficiente_fiscale(forma, reg, add_com):
     if forma == "Regime Forfettario":
         return 0.0
-    
     info_reg = regioni_db[reg]
     irap = info_reg["irap"]
-    
     if forma == "Società di Capitali (S.r.l., S.p.A.)":
-        # IRES (24%) + IRAP
         return 0.24 + irap
     elif "medio" in forma:
-        # IRPEF (35%) + IRAP + Addizionale Regionale Media + Addizionale Comunale
         add_reg = (info_reg["add_reg_min"] + info_reg["add_reg_max"]) / 2.0
         return 0.35 + irap + add_reg + add_com
     elif "massimo" in forma:
-        # IRPEF (43%) + IRAP + Addizionale Regionale Max + Addizionale Comunale
         add_reg = info_reg["add_reg_max"]
         return 0.43 + irap + add_reg + add_com
 
@@ -73,12 +105,12 @@ st.sidebar.markdown("---")
 st.sidebar.metric("Coefficiente Fiscale Unico ($C2$)", f"{coeff_fiscale * 100:.2f} %")
 
 # ---------------------------------------------------------
-# 2. BENEFICI ENERGETICI & NOLEGGIO (INPUT UTENTE)
+# 2. BENEFICI ENERGETICI & NOLEGGIO
 # ---------------------------------------------------------
 col1, col2 = st.columns(2)
 
 with col1:
-    st.subheader("💡 1. Benefici Energetici (Dati Impianto)")
+    st.subheader("💡 Benefici Energetici (Dati Impianto)")
     prod_impianto = st.number_input("B2: Produzione Impianto (kWh)", value=14000.0, step=500.0)
     durata_noleggio = st.number_input("C2: Anni Durata Noleggio", value=7, step=1)
     autoconsumo_pct = st.number_input("C4: Autoconsumo / Produzione (%)", value=80.0, step=5.0) / 100.0
@@ -86,15 +118,15 @@ with col1:
     prezzo_energia_venduta = st.number_input("C10: Prezzo Energia Venduta (€/kWh)", value=0.10, step=0.01)
 
 with col2:
-    st.subheader("💳 2. Parametri Noleggio Operativo")
+    st.subheader("💳 Parametri Noleggio Operativo")
     rata_mensile = st.number_input("A2: Rata Mensile Noleggio (€)", value=250.0, step=10.0)
     rata_bimestrale = rata_mensile * 2.0
-    noleggio_annuale = rata_bimestrale * 6.0  # = rata_mensile * 12
+    noleggio_annuale = rata_bimestrale * 6.0
     st.write(f"**A4 Rata Bimestrale:** € {rata_bimestrale:.2f}")
     st.write(f"**Noleggio Annuale (D2):** € {noleggio_annuale:.2f}")
 
 # ---------------------------------------------------------
-# 3. PERDITA DI ENERGIA (FOGLIO NASCOSTO - CALCOLO AUTOMATICO)
+# 3. PERDITA DI ENERGIA (CALCOLO AUTOMATICO)
 # ---------------------------------------------------------
 prod_media_annuale = prod_impianto / durata_noleggio if durata_noleggio > 0 else 0
 energia_autoconsumata_base = prod_media_annuale * autoconsumo_pct
