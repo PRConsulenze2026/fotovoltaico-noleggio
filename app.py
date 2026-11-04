@@ -139,11 +139,4 @@ prod_impianto = st.session_state["prod_impianto"]
 durata_noleggio = st.session_state["durata_noleggio"]
 autoconsumo_pct = st.session_state["autoconsumo_pct"] / 100.0
 costo_energia = st.session_state["costo_energia_pagata"]
-prezzo_vendita = st.session_state["prezzo_energia_venduta"]
-cessione_pct = 1.0 - autoconsumo_pct
-
-prod_media_annuale = prod_impianto / durata_noleggio if durata_noleggio > 0 else 0
-energia_autoconsumata = prod_media_annuale * autoconsumo_pct
-risparmio_autoconsumo = energia_autoconsumata * costo_energia
-energia_venduta = prod_media_annuale * cessione_pct
-ricavo_vendita = energia_venduta * prezzo_vend
+prezzo_vendita = st.session
