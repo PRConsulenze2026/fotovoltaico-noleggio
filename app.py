@@ -8,13 +8,13 @@ st.set_page_config(page_title="Simulatore Flusso di Cassa Fotovoltaico", layout=
 # VALORI DI DEFAULT ED INIZIALIZZAZIONE SESSION STATE
 # ---------------------------------------------------------
 DEFAULTS = {
-    "potenza_kwp": 30.0,
+    "potenza_kwp": 30.380,
     "azienda": "",
     "indirizzo": "",
     "citta": "",
     "cap": "",
     "prov": "",
-    "autoconsumo_nota": "",
+    "protocollo": "",
     "data_offerta": pd.to_datetime("today").date(),
     "prod_impianto": 14000.0,         # B2
     "durata_noleggio": 7,             # C2
@@ -34,7 +34,6 @@ for key, val in DEFAULTS.items():
 def reset_dati():
     for key, val in DEFAULTS.items():
         st.session_state[key] = val
-    # Forza il ricaricamento pulito della sessione
     st.rerun()
 
 # ---------------------------------------------------------
@@ -56,7 +55,7 @@ col_a1, col_a2, col_a3 = st.columns([3, 1, 1])
 with col_a1:
     st.markdown("**OFFERTA PRELIMINARE PER IL NOLEGGIO DI UN IMPIANTO FOTOVOLTAICO DA:**")
 with col_a2:
-    st.number_input("kWp", step=1.0, label_visibility="collapsed", key="potenza_kwp")
+    st.number_input("kWp", step=0.001, format="%.3f", label_visibility="collapsed", key="potenza_kwp")
 with col_a3:
     st.markdown("**kWp**")
 
@@ -64,7 +63,7 @@ col_b1, col_b2 = st.columns([3, 2])
 with col_b1:
     st.markdown("**PER AUTOCONSUMO DI ENERGIA**")
 with col_b2:
-    st.text_input("Note Autoconsumo", placeholder="Inserisci eventuale nota...", label_visibility="collapsed", key="autoconsumo_nota")
+    st.text_input("Protocollo", placeholder="Protocollo...", label_visibility="collapsed", key="protocollo")
 
 st.markdown("---")
 
@@ -74,12 +73,12 @@ with col_c1:
     st.text_input("INDIRIZZO", placeholder="Via / Piazza e civico...", key="indirizzo")
 with col_c2:
     st.text_input("CITTA'", placeholder="Città...", key="citta")
-    
-col_d1, col_d2, col_d3 = st.columns([2, 1, 1])
-with col_d1:
-    st.text_input("CAP", placeholder="CAP", key="cap")
-with col_d2:
-    st.text_input("PROV.", placeholder="Provincia (es. FG)", key="prov")
+    # CAP e PROV affiancati sotto CITTA' con campi più compatti
+    col_cp1, col_cp2 = st.columns([2, 1])
+    with col_cp1:
+        st.text_input("CAP", placeholder="CAP", key="cap")
+    with col_cp2:
+        st.text_input("PROV.", placeholder="Prov.", key="prov")
 
 st.markdown("---")
 
@@ -150,7 +149,6 @@ st.sidebar.metric("Coefficiente Fiscale Unico (C2)", f"{coeff_fiscale * 100:.2f}
 st.header("💡 Benefici Energetici")
 st.markdown("*(I campi evidenziati in verde sono modificabili; gli altri derivano dalle formule del foglio Excel)*")
 
-# Estrazione valori dai campi di input (verdi)
 prod_impianto = st.session_state["prod_impianto"]         # B2
 durata_noleggio = st.session_state["durata_noleggio"]     # C2
 autoconsumo_pct = st.session_state["autoconsumo_pct"] / 100.0  # C4
@@ -158,7 +156,6 @@ costo_energia = st.session_state["costo_energia_pagata"]  # C6
 prezzo_vendita = st.session_state["prezzo_energia_venduta"] # C10
 cessione_pct = 1.0 - autoconsumo_pct                    # C8
 
-# Formule esatte Excel
 prod_media_annuale = prod_impianto / durata_noleggio if durata_noleggio > 0 else 0  # D2
 energia_autoconsumata = prod_media_annuale * autoconsumo_pct                         # D4
 risparmio_autoconsumo = energia_autoconsumata * costo_energia                        # D6
@@ -166,7 +163,6 @@ energia_venduta = prod_media_annuale * cessione_pct                             
 ricavo_vendita = energia_venduta * prezzo_vendita                                    # D10
 totale_benefici = risparmio_autoconsumo + ricavo_vendita                             # D12
 
-# Griglia a 4 Colonne identica al layout Excel
 c1, c2, c3, c4 = st.columns(4)
 
 with c1:
@@ -178,7 +174,6 @@ with c1:
     st.markdown("**Totale Benefici Energetici per Anno**")
 
 with c2:
-    # Campi verdi di input (B2 e C4) alternati alle celle calcolate
     st.number_input("B2: Produzione Impianto/kWh", step=500.0, key="prod_impianto", label_visibility="collapsed")
     st.metric("Energia Autoconsumata (kWh)", f"{energia_autoconsumata:,.2f}")
     st.metric("Risparmio Autoconsumo (€)", f"€ {risparmio_autoconsumo:,.2f}")
