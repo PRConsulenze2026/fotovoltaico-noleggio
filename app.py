@@ -130,4 +130,130 @@ regioni_db = {
     "Piemonte": {"irap": 0.0390, "add_reg_min": 0.0162, "add_reg_max": 0.0333},
     "Puglia": {"irap": 0.0482, "add_reg_min": 0.0123, "add_reg_max": 0.0173},
     "Sardegna": {"irap": 0.0293, "add_reg_min": 0.0123, "add_reg_max": 0.0123},
-    "Sicilia": {"irap": 0.0390, "add_
+    "Sicilia": {"irap": 0.0390, "add_reg_min": 0.0123, "add_reg_max": 0.0173},
+    "Toscana": {"irap": 0.0390, "add_reg_min": 0.0142, "add_reg_max": 0.0173},
+    "Trentino-Alto Adige": {"irap": 0.0346, "add_reg_min": 0.0123, "add_reg_max": 0.0123},
+    "Umbria": {"irap": 0.0390, "add_reg_min": 0.0123, "add_reg_max": 0.0183},
+    "Valle d'Aosta": {"irap": 0.0390, "add_reg_min": 0.0123, "add_reg_max": 0.0123},
+    "Veneto": {"irap": 0.0390, "add_reg_min": 0.0123, "add_reg_max": 0.0123},
+}
+
+# ---------------------------------------------------------
+# 2. BENEFICI ENERGETICI (LAYOUT ESATTO A 4 COLONNE DA EXCEL)
+# ---------------------------------------------------------
+st.header("💡 Benefici Energetici")
+
+prod_impianto = st.session_state["prod_impianto"]
+durata_noleggio = st.session_state["durata_noleggio"] if st.session_state["durata_noleggio"] > 0 else 1
+autoconsumo_pct = st.session_state["autoconsumo_pct"] / 100.0
+costo_energia = st.session_state["costo_energia_pagata"]
+prezzo_vendita = st.session_state["prezzo_energia_venduta"]
+cessione_pct = st.session_state["cessione_pct"] / 100.0
+
+prod_media_annuale = prod_impianto / durata_noleggio if durata_noleggio > 0 else 0
+energia_autoconsumata = prod_media_annuale * autoconsumo_pct
+risparmio_autoconsumo = energia_autoconsumata * costo_energia
+energia_venduta = prod_media_annuale * cessione_pct
+ricavo_vendita = energia_venduta * prezzo_vendita
+totale_benefici = risparmio_autoconsumo + ricavo_vendita
+
+# --- Blocco 1 ---
+col_1a, col_1b, col_1c, col_1d = st.columns([3, 2, 2, 2])
+with col_1a:
+    st.markdown("**Produzione Media Annuale**")
+with col_1b:
+    st.markdown("*Produzione Impianto/kWh*")
+    st.number_input("B2", step=500.0, key="prod_impianto", label_visibility="collapsed")
+with col_1c:
+    st.markdown("*Anni Durata Noleggio*")
+    st.number_input("C2", step=1, key="durata_noleggio", label_visibility="collapsed")
+with col_1d:
+    st.markdown("*kWh*")
+    st.text_input("D1", value=f"{prod_media_annuale:,.2f}", disabled=True, label_visibility="collapsed")
+
+st.markdown("---")
+
+# --- Blocco 2 ---
+col_2a, col_2b, col_2c, col_2d = st.columns([3, 2, 2, 2])
+with col_2a:
+    st.markdown("**Energia Autoconsumata**")
+with col_2b:
+    st.markdown("*Produzione Media Annuale*")
+    st.text_input("D2", value=f"{prod_media_annuale:,.2f}", disabled=True, label_visibility="collapsed")
+with col_2c:
+    st.markdown("*Autoconsumo/Produzione in %*")
+    st.number_input("C4", step=5.0, key="autoconsumo_pct", label_visibility="collapsed")
+with col_2d:
+    st.markdown("*kWh*")
+    st.text_input("D3", value=f"{energia_autoconsumata:,.2f}", disabled=True, label_visibility="collapsed")
+
+st.markdown("---")
+
+# --- Blocco 3 ---
+col_3a, col_3b, col_3c, col_3d = st.columns([3, 2, 2, 2])
+with col_3a:
+    st.markdown("**Risparmio in Autoconsumo**")
+with col_3b:
+    st.markdown("*Energia Autoconsumata*")
+    st.text_input("D4", value=f"{energia_autoconsumata:,.2f}", disabled=True, label_visibility="collapsed")
+with col_3c:
+    st.markdown("*Costo Energia Attualmente Pagata in kWh*")
+    st.number_input("C6", step=0.00001, format="%.5f", key="costo_energia_pagata", label_visibility="collapsed")
+with col_3d:
+    st.markdown("*€.*")
+    st.text_input("D5", value=f"€ {risparmio_autoconsumo:,.2f}", disabled=True, label_visibility="collapsed")
+
+st.markdown("---")
+
+# --- Blocco 4 ---
+col_4a, col_4b, col_4c, col_4d = st.columns([3, 2, 2, 2])
+with col_4a:
+    st.markdown("**Energia Venduta**")
+with col_4b:
+    st.markdown("*Produzione Media Annuale*")
+    st.text_input("D6", value=f"{prod_media_annuale:,.2f}", disabled=True, label_visibility="collapsed")
+with col_4c:
+    st.markdown("*Cessione EE/Produzione di Energia in %*")
+    st.number_input("C8", step=1.0, format="%.2f", key="cessione_pct", label_visibility="collapsed")
+with col_4d:
+    st.markdown("*kWh*")
+    st.text_input("D7", value=f"{energia_venduta:,.2f}", disabled=True, label_visibility="collapsed")
+
+st.markdown("---")
+
+# --- Blocco 5 ---
+col_5a, col_5b, col_5c, col_5d = st.columns([3, 2, 2, 2])
+with col_5a:
+    st.markdown("**Ricavo dalla Vendita**")
+with col_5b:
+    st.markdown("*Energia Venduta*")
+    st.text_input("D8", value=f"{energia_venduta:,.2f}", disabled=True, label_visibility="collapsed")
+with col_5c:
+    st.markdown("*Prezzo Energia Venduta in kWh*")
+    st.number_input("C10", step=0.01, format="%.2f", key="prezzo_energia_venduta", label_visibility="collapsed")
+with col_5d:
+    st.markdown("*€.*")
+    st.text_input("D9", value=f"€ {ricavo_vendita:,.2f}", disabled=True, label_visibility="collapsed")
+
+st.markdown("---")
+
+# --- Blocco 6 ---
+col_6a, col_6b, col_6c, col_6d = st.columns([3, 2, 2, 2])
+with col_6a:
+    st.markdown("**Totale Benefici Energetici per Anno**")
+with col_6b:
+    st.markdown("*Risparmio in Autoconsumo*")
+    st.text_input("D10", value=f"€ {risparmio_autoconsumo:,.2f}", disabled=True, label_visibility="collapsed")
+with col_6c:
+    st.markdown("*Ricavo dalla Vendita*")
+    st.text_input("D11", value=f"€ {ricavo_vendita:,.2f}", disabled=True, label_visibility="collapsed")
+with col_6d:
+    st.markdown("*€. (Totale)*")
+    st.text_input("D12", value=f"€ {totale_benefici:,.2f}", disabled=True, label_visibility="collapsed")
+
+st.markdown("---")
+
+# ---------------------------------------------------------
+# 3. PARAMETRI NOLEGGIO OPERATIVO
+# ---------------------------------------------------------
+st.header("💳 Param
