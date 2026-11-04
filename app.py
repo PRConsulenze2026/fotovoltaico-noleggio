@@ -237,23 +237,4 @@ with col_5d:
 
 st.markdown("---")
 
-# --- Blocco 6 ---
-col_6a, col_6b, col_6c, col_6d = st.columns([3, 2, 2, 2])
-with col_6a:
-    st.markdown("**Totale Benefici Energetici per Anno**")
-with col_6b:
-    st.markdown("*Risparmio in Autoconsumo*")
-    st.text_input("D10", value=f"€ {risparmio_autoconsumo:,.2f}", disabled=True, label_visibility="collapsed")
-with col_6c:
-    st.markdown("*Ricavo dalla Vendita*")
-    st.text_input("D11", value=f"€ {ricavo_vendita:,.2f}", disabled=True, label_visibility="collapsed")
-with col_6d:
-    st.markdown("*€. (Totale)*")
-    st.text_input("D12", value=f"€ {totale_benefici:,.2f}", disabled=True, label_visibility="collapsed")
-
-st.markdown("---")
-
-# ---------------------------------------------------------
-# 3. PARAMETRI NOLEGGIO OPERATIVO
-# ---------------------------------------------------------
-st.header("💳 Param
+# --- Blocco
