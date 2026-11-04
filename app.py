@@ -4,7 +4,7 @@ import numpy as np
 
 st.set_page_config(page_title="Simulatore Flusso di Cassa Fotovoltaico", layout="wide")
 
-# CSS per uniformare il colore di TUTTI i campi di input (inclusi quelli disabilitati/bianchi)
+# CSS per uniformare i campi di input con sfondo verde chiaro
 st.markdown("""
 <style>
 div.stNumberInput input, div.stTextInput input, div.stDateInput input {
@@ -12,7 +12,6 @@ div.stNumberInput input, div.stTextInput input, div.stDateInput input {
     padding: 2px 6px !important;
     background-color: #e2efda !important;
 }
-/* Forza lo sfondo verde anche per i campi disabilitati / sola lettura */
 input:disabled, textarea:disabled {
     background-color: #e2efda !important;
     -webkit-text-fill-color: #000000 !important;
@@ -126,5 +125,4 @@ regioni_db = {
     "Puglia": {"irap": 0.0482, "add_reg_min": 0.0123, "add_reg_max": 0.0173},
     "Sardegna": {"irap": 0.0293, "add_reg_min": 0.0123, "add_reg_max": 0.0123},
     "Sicilia": {"irap": 0.0390, "add_reg_min": 0.0123, "add_reg_max": 0.0173},
-    "Toscana": {"irap": 0.0390, "add_reg_min": 0.0142, "add_reg_max": 0.0173},
-    "Trentino-Alto Adige": {"irap": 0.
+    "Toscana": {"irap": 0.0390, "add_reg_min": 0.01
