@@ -4,16 +4,16 @@ import numpy as np
 
 st.set_page_config(page_title="Simulatore Flusso di Cassa Fotovoltaico", layout="wide")
 
-# CSS per normalizzare i font dei campi di input
+# CSS per normalizzare i font e colorare i campi di input modificabili (verde chiaro)
 st.markdown("""
 <style>
 div.stNumberInput input {
-    font-size: 14px !important;
-    padding: 4px 8px !important;
+    font-size: 13px !important;
+    padding: 3px 6px !important;
 }
 div.stTextInput input {
-    font-size: 14px !important;
-    padding: 4px 8px !important;
+    font-size: 13px !important;
+    padding: 3px 6px !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -131,7 +131,7 @@ regioni_db = {
 }
 
 # ---------------------------------------------------------
-# 2. BENEFICI ENERGETICI (TABELLA A 4 COLONNE ALLINEATA)
+# 2. BENEFICI ENERGETICI (LAYOUT A 4 COLONNE ALLINEATO ESATTO)
 # ---------------------------------------------------------
 st.header("💡 Benefici Energetici")
 
@@ -149,46 +149,48 @@ energia_venduta = prod_media_annuale * cessione_pct
 ricavo_vendita = energia_venduta * prezzo_vendita
 totale_benefici = risparmio_autoconsumo + ricavo_vendita
 
-col_h1, col_h2, col_h3, col_h4 = st.columns([2.5, 2, 2.5, 1.5])
-
-with col_h1:
-    st.markdown("---")
-    st.markdown("**Produzione Media Annuale**")
-    st.markdown("---")
-    st.markdown("**Energia Autoconsumata**")
-    st.markdown("---")
-    st.markdown("**Risparmio in Autoconsumo**")
-    st.markdown("---")
-    st.markdown("**Energia Venduta**")
-    st.markdown("---")
-    st.markdown("**Ricavo dalla Vendita**")
-    st.markdown("---")
-    st.markdown("**Totale Benefici Energetici per Anno**")
-
-with col_h2:
-    st.markdown("*Produzione Impianto/kWh*")
+# Ricalco esatto riga per riga speculare al file Excel
+r1_c1, r1_c2, r1_c3, r1_c4 = st.columns([2.5, 2, 2.5, 1.5])
+with r1_c2:
+    st.markdown("<small><b>Produzione Impianto/kWh</b></small>", unsafe_allow_html=True)
     st.number_input("B2", step=500.0, key="prod_impianto", label_visibility="collapsed")
-    st.markdown("*Produzione Media Annuale*")
-    st.text_input("D2", value=f"{energia_autoconsumata:,.2f}", disabled=True, label_visibility="collapsed")
-    st.markdown("*Energia Autoconsumata*")
-    st.text_input("D4", value=f"€ {risparmio_autoconsumo:,.2f}", disabled=True, label_visibility="collapsed")
-    st.markdown("*Produzione Media Annuale*")
-    st.text_input("D8_1", value=f"{energia_venduta:,.2f}", disabled=True, label_visibility="collapsed")
-    st.markdown("*Energia Venduta*")
-    st.text_input("D10_1", value=f"€ {ricavo_vendita:,.2f}", disabled=True, label_visibility="collapsed")
-    st.markdown("*Risparmio in Autoconsumo*")
-    st.text_input("D12_1", value=f"€ {totale_benefici:,.2f}", disabled=True, label_visibility="collapsed")
-
-with col_h3:
-    st.markdown("*Anni Durata Noleggio*")
+with r1_c3:
+    st.markdown("<small><b>Anni Durata Noleggio</b></small>", unsafe_allow_html=True)
     st.number_input("C2", step=1, key="durata_noleggio", label_visibility="collapsed")
-    st.markdown("*Autoconsumo/Produzione in %*")
+with r1_c4:
+    st.markdown("<small><b>kWh</b></small>", unsafe_allow_html=True)
+    st.text_input("D1", value=f"{prod_media_annuale:,.2f}", disabled=True, label_visibility="collapsed")
+
+st.markdown("---")
+
+r2_c1, r2_c2, r2_c3, r2_c4 = st.columns([2.5, 2, 2.5, 1.5])
+with r2_c1:
+    st.markdown("**Produzione Media Annuale**")
+with r2_c2:
+    st.text_input("D2", value=f"{prod_media_annuale:,.2f}", disabled=True, label_visibility="collapsed")
+with r2_c3:
+    st.markdown("<small><b>Autoconsumo/Produzione in %</b></small>", unsafe_allow_html=True)
     st.number_input("C4", step=5.0, key="autoconsumo_pct", label_visibility="collapsed")
-    st.markdown("*Costo Energia Attualmente Pagata in kWh*")
+with r2_c4:
+    st.markdown("<small><b>kWh</b></small>", unsafe_allow_html=True)
+    st.text_input("D3", value=f"{energia_autoconsumata:,.2f}", disabled=True, label_visibility="collapsed")
+
+st.markdown("---")
+
+r3_c1, r3_c2, r3_c3, r3_c4 = st.columns([2.5, 2, 2.5, 1.5])
+with r3_c1:
+    st.markdown("**Energia Autoconsumata**")
+with r3_c2:
+    st.text_input("D4", value=f"{energia_autoconsumata:,.2f}", disabled=True, label_visibility="collapsed")
+with r3_c3:
+    st.markdown("<small><b>Costo Energia Attualmente Pagata in kWh</b></small>", unsafe_allow_html=True)
     st.number_input("C6", step=0.01, key="costo_energia_pagata", label_visibility="collapsed")
-    st.markdown("*Cessione EE/Produzione di Energia in %*")
-    st.text_input("C8", value=f"{cessione_pct*100:.1f} %", disabled=True, label_visibility="collapsed")
-    st.markdown("*Prezzo Energia Venduta in kWh*")
-    st.number_input("C10", step=0.01, key="prezzo_energia_venduta", label_visibility="collapsed")
-    st.markdown("*Ricavo dalla Vendita*")
-    st.markdown("—")
+with r3_c4:
+    st.markdown("<small><b>€.</b></small>", unsafe_allow_html=True)
+    st.text_input("D5", value=f"€ {costo_energia:.2f}", disabled=True, label_visibility="collapsed")
+
+st.markdown("---")
+
+r4_c1, r4_c2, r4_c3, r4_c4 = st.columns([2.5, 2, 2.5, 1.5])
+with r4_c1:
+    st.markdown("**
