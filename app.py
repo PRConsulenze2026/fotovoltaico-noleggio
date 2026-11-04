@@ -4,7 +4,7 @@ import numpy as np
 
 st.set_page_config(page_title="Simulatore Flusso di Cassa Fotovoltaico", layout="wide")
 
-# CSS personalizzato per impostare il grigio scuro su tutti i campi e testo bianco
+# CSS personalizzato per eliminare il bianco/verde e impostare il grigio scuro coordinato con il tema scuro
 st.markdown("""
 <style>
 div.stNumberInput input, div.stTextInput input, div.stDateInput input {
@@ -42,7 +42,7 @@ DEFAULTS = {
     "autoconsumo_pct": 0.0,
     "costo_energia_pagata": 0.0,
     "cessione_pct": 0.0,
-    "prezzo_energia_venduta": 0.0,
+    "prezzo_energia_venduta": 0.00000,
     "rata_mensile": 0.0,
     "manutenzione_default": 0.0,
     "riscatto_default": 0.0,
@@ -230,7 +230,7 @@ with col_5b:
     st.text_input("D8", value=f"{energia_venduta:,.2f}", disabled=True, label_visibility="collapsed")
 with col_5c:
     st.markdown("*Prezzo Energia Venduta in kWh*")
-    st.number_input("C10", step=0.01, format="%.2f", key="prezzo_energia_venduta", label_visibility="collapsed")
+    st.number_input("C10", step=0.00001, format="%.5f", key="prezzo_energia_venduta", label_visibility="collapsed")
 with col_5d:
     st.markdown("*€.*")
     st.text_input("D9", value=f"€ {ricavo_vendita:,.2f}", disabled=True, label_visibility="collapsed")
