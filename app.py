@@ -15,11 +15,12 @@ DEFAULTS = {
     "cap": "",
     "prov": "",
     "autoconsumo_nota": "",
-    "prod_impianto": 14000.0,         # B2 (Produzione Impianto kWh)
-    "durata_noleggio": 7,             # C2 (Anni Durata Noleggio)
-    "autoconsumo_pct": 80.0,          # C4 (Autoconsumo %)
-    "costo_energia_pagata": 0.25,     # C6 (Costo Energia €/kWh)
-    "prezzo_energia_venduta": 0.10,   # C10 (Prezzo Energia Venduta €/kWh)
+    "data_offerta": pd.to_datetime("today").date(),
+    "prod_impianto": 14000.0,         # B2
+    "durata_noleggio": 7,             # C2
+    "autoconsumo_pct": 80.0,          # C4
+    "costo_energia_pagata": 0.25,     # C6
+    "prezzo_energia_venduta": 0.10,   # C10
     "rata_mensile": 250.0,
     "manutenzione_default": -530.0,
     "riscatto_default": -500.0,
@@ -33,6 +34,8 @@ for key, val in DEFAULTS.items():
 def reset_dati():
     for key, val in DEFAULTS.items():
         st.session_state[key] = val
+    # Forza il ricaricamento pulito della sessione
+    st.rerun()
 
 # ---------------------------------------------------------
 # INTESTAZIONE
@@ -44,6 +47,11 @@ st.title("⚡ Simulatore Flusso di Cassa Fotovoltaico in Noleggio Operativo")
 # ---------------------------------------------------------
 st.header("📄 Anagrafica e Dati Offerta")
 
+# DATA posizionata in alto sopra il numero kWp
+col_d_top1, col_d_top2 = st.columns([4, 1])
+with col_d_top2:
+    st.date_input("DATA", key="data_offerta")
+
 col_a1, col_a2, col_a3 = st.columns([3, 1, 1])
 with col_a1:
     st.markdown("**OFFERTA PRELIMINARE PER IL NOLEGGIO DI UN IMPIANTO FOTOVOLTAICO DA:**")
@@ -54,7 +62,7 @@ with col_a3:
 
 col_b1, col_b2 = st.columns([3, 2])
 with col_b1:
-    st.markdown("**PER AUTOCONSUMO DI ENERGIA** *(Campo descrittivo fisso)*")
+    st.markdown("**PER AUTOCONSUMO DI ENERGIA**")
 with col_b2:
     st.text_input("Note Autoconsumo", placeholder="Inserisci eventuale nota...", label_visibility="collapsed", key="autoconsumo_nota")
 
@@ -72,8 +80,6 @@ with col_d1:
     st.text_input("CAP", placeholder="CAP", key="cap")
 with col_d2:
     st.text_input("PROV.", placeholder="Provincia (es. FG)", key="prov")
-with col_d3:
-    st.date_input("DATA", value=pd.to_datetime("today"))
 
 st.markdown("---")
 
@@ -139,10 +145,10 @@ st.sidebar.markdown("---")
 st.sidebar.metric("Coefficiente Fiscale Unico (C2)", f"{coeff_fiscale * 100:.2f} %")
 
 # ---------------------------------------------------------
-# 2. BENEFICI ENERGETICI (TABELLA A 3 COLONNE DA EXCEL)
+# 2. BENEFICI ENERGETICI (TABELLA A 4 COLONNE IDENTICA AL FOGLIO EXCEL)
 # ---------------------------------------------------------
-st.header("💡 1. Benefici Energetici (Dati Impianto)")
-st.markdown("*(I campi evidenziati in verde sono modificabili; i restanti seguono rigorosamente le formule del foglio Excel)*")
+st.header("💡 Benefici Energetici")
+st.markdown("*(I campi evidenziati in verde sono modificabili; gli altri derivano dalle formule del foglio Excel)*")
 
 # Estrazione valori dai campi di input (verdi)
 prod_impianto = st.session_state["prod_impianto"]         # B2
@@ -152,7 +158,7 @@ costo_energia = st.session_state["costo_energia_pagata"]  # C6
 prezzo_vendita = st.session_state["prezzo_energia_venduta"] # C10
 cessione_pct = 1.0 - autoconsumo_pct                    # C8
 
-# Calcoli esatti basati sul foglio Excel "Benefici Energetici"
+# Formule esatte Excel
 prod_media_annuale = prod_impianto / durata_noleggio if durata_noleggio > 0 else 0  # D2
 energia_autoconsumata = prod_media_annuale * autoconsumo_pct                         # D4
 risparmio_autoconsumo = energia_autoconsumata * costo_energia                        # D6
@@ -160,30 +166,42 @@ energia_venduta = prod_media_annuale * cessione_pct                             
 ricavo_vendita = energia_venduta * prezzo_vendita                                    # D10
 totale_benefici = risparmio_autoconsumo + ricavo_vendita                             # D12
 
-# Creazione della tabella a 3 colonne fedele al foglio Excel
-col_t1, col_t2, col_t3 = st.columns([2, 2, 2])
+# Griglia a 4 Colonne identica al layout Excel
+c1, c2, c3, c4 = st.columns(4)
 
-with col_t1:
-    st.subheader("Input & Autoconsumo")
-    st.number_input("B2: Produzione Impianto (kWh)", step=500.0, key="prod_impianto")
-    st.number_input("C4: Autoconsumo / Produzione (%)", step=5.0, key="autoconsumo_pct")
-    st.number_input("C6: Costo Energia Pagata (€/kWh)", step=0.01, key="costo_energia_pagata")
+with c1:
+    st.markdown("**Produzione Media Annuale**")
+    st.markdown("**Energia Autoconsumata**")
+    st.markdown("**Risparmio in Autoconsumo**")
+    st.markdown("**Energia Venduta**")
+    st.markdown("**Ricavo dalla Vendita**")
+    st.markdown("**Totale Benefici Energetici per Anno**")
 
-with col_t2:
-    st.subheader("Durata & Cessione")
-    st.number_input("C2: Anni Durata Noleggio", step=1, key="durata_noleggio")
-    st.metric("C8: Cessione EE / Produzione (%)", f"{cessione_pct * 100:.1f} %")
-    st.number_input("C10: Prezzo Energia Venduta (€/kWh)", step=0.01, key="prezzo_energia_venduta")
+with c2:
+    # Campi verdi di input (B2 e C4) alternati alle celle calcolate
+    st.number_input("B2: Produzione Impianto/kWh", step=500.0, key="prod_impianto", label_visibility="collapsed")
+    st.metric("Energia Autoconsumata (kWh)", f"{energia_autoconsumata:,.2f}")
+    st.metric("Risparmio Autoconsumo (€)", f"€ {risparmio_autoconsumo:,.2f}")
+    st.metric("Energia Venduta (kWh)", f"{energia_venduta:,.2f}")
+    st.metric("Ricavo Vendita (€)", f"€ {ricavo_vendita:,.2f}")
+    st.metric("Totale Anno (€)", f"€ {totale_benefici:,.2f}")
 
-with col_t3:
-    st.subheader("Risultati Formule")
-    st.metric("D2: Produzione Media Annuale", f"{prod_media_annuale:,.2f} kWh")
-    st.metric("D4: Energia Autoconsumata", f"{energia_autoconsumata:,.2f} kWh")
-    st.metric("D6: Risparmio in Autoconsumo", f"€ {risparmio_autoconsumo:,.2f}")
-    st.metric("D8: Energia Venduta", f"{energia_venduta:,.2f} kWh")
-    st.metric("D10: Ricavo dalla Vendita", f"€ {ricavo_vendita:,.2f}")
+with c3:
+    st.number_input("C2: Anni Durata Noleggio", step=1, key="durata_noleggio", label_visibility="collapsed")
+    st.number_input("C4: Autoconsumo / Produzione %", step=5.0, key="autoconsumo_pct", label_visibility="collapsed")
+    st.number_input("C6: Costo Energia (€/kWh)", step=0.01, key="costo_energia_pagata", label_visibility="collapsed")
+    st.number_input("C8: Cessione EE %", value=float(cessione_pct*100), disabled=True, label_visibility="collapsed")
+    st.number_input("C10: Prezzo Energia (€/kWh)", step=0.01, key="prezzo_energia_venduta", label_visibility="collapsed")
+    st.markdown("—")
 
-st.markdown(f"### 🎯 D12: Totale Benefici Energetici per Anno: **€ {totale_benefici:,.2f}**")
+with c4:
+    st.metric("Produzione Media (kWh)", f"{prod_media_annuale:,.2f}")
+    st.metric("Autoconsumo kWh", f"{energia_autoconsumata:,.2f}")
+    st.metric("Costo Energia €.", f"€ {costo_energia:.2f}")
+    st.metric("Energia Venduta kWh", f"{energia_venduta:,.2f}")
+    st.metric("Prezzo Vendita €.", f"€ {prezzo_vendita:.2f}")
+    st.metric("Totale Benefici €.", f"€ {totale_benefici:,.2f}")
+
 st.markdown("---")
 
 # ---------------------------------------------------------
