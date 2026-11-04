@@ -187,4 +187,8 @@ with col_h3:
     st.markdown("*Costo Energia Attualmente Pagata in kWh*")
     st.number_input("C6", step=0.01, key="costo_energia_pagata", label_visibility="collapsed")
     st.markdown("*Cessione EE/Produzione di Energia in %*")
-    st.text_input("C8", value=f"{cessione_pct*100:.1f} %", disabled=True, label_visibility="collapsed
+    st.text_input("C8", value=f"{cessione_pct*100:.1f} %", disabled=True, label_visibility="collapsed")
+    st.markdown("*Prezzo Energia Venduta in kWh*")
+    st.number_input("C10", step=0.01, key="prezzo_energia_venduta", label_visibility="collapsed")
+    st.markdown("*Ricavo dalla Vendita*")
+    st.markdown("—")
