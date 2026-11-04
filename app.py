@@ -155,33 +155,4 @@ energia_autoconsumata = prod_media_annuale * autoconsumo_pct
 risparmio_autoconsumo = energia_autoconsumata * costo_energia
 energia_venduta = prod_media_annuale * cessione_pct
 ricavo_vendita = energia_venduta * prezzo_vendita
-totale_benefici = risparmio_autoconsumo + ricavo_vendita
-
-# --- Blocco 1 ---
-col_1a, col_1b, col_1c, col_1d = st.columns([3, 2, 2, 2])
-with col_1a:
-    st.markdown("**Produzione Media Annuale**")
-with col_1b:
-    st.markdown("*Produzione Impianto/kWh*")
-    st.number_input("B2", step=500.0, key="prod_impianto", label_visibility="collapsed")
-with col_1c:
-    st.markdown("*Anni Durata Noleggio*")
-    st.number_input("C2", step=1, key="durata_noleggio", label_visibility="collapsed")
-with col_1d:
-    st.markdown("*kWh*")
-    st.text_input("D1", value=f"{prod_media_annuale:,.2f}", disabled=True, label_visibility="collapsed")
-
-st.markdown("---")
-
-# --- Blocco 2 ---
-col_2a, col_2b, col_2c, col_2d = st.columns([3, 2, 2, 2])
-with col_2a:
-    st.markdown("**Energia Autoconsumata**")
-with col_2b:
-    st.markdown("*Produzione Media Annuale*")
-    st.text_input("D2", value=f"{prod_media_annuale:,.2f}", disabled=True, label_visibility="collapsed")
-with col_2c:
-    st.markdown("*Autoconsumo/Produzione in %*")
-    st.number_input("C4", step=5.0, key="autoconsumo_pct", label_visibility="collapsed")
-with col_2d:
-    st.markdown("*
+totale_benefici =
