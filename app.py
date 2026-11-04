@@ -130,29 +130,4 @@ regioni_db = {
     "Piemonte": {"irap": 0.0390, "add_reg_min": 0.0162, "add_reg_max": 0.0333},
     "Puglia": {"irap": 0.0482, "add_reg_min": 0.0123, "add_reg_max": 0.0173},
     "Sardegna": {"irap": 0.0293, "add_reg_min": 0.0123, "add_reg_max": 0.0123},
-    "Sicilia": {"irap": 0.0390, "add_reg_min": 0.0123, "add_reg_max": 0.0173},
-    "Toscana": {"irap": 0.0390, "add_reg_min": 0.0142, "add_reg_max": 0.0173},
-    "Trentino-Alto Adige": {"irap": 0.0346, "add_reg_min": 0.0123, "add_reg_max": 0.0123},
-    "Umbria": {"irap": 0.0390, "add_reg_min": 0.0123, "add_reg_max": 0.0183},
-    "Valle d'Aosta": {"irap": 0.0390, "add_reg_min": 0.0123, "add_reg_max": 0.0123},
-    "Veneto": {"irap": 0.0390, "add_reg_min": 0.0123, "add_reg_max": 0.0123},
-}
-
-# ---------------------------------------------------------
-# 2. BENEFICI ENERGETICI (LAYOUT ESATTO A 4 COLONNE DA EXCEL)
-# ---------------------------------------------------------
-st.header("💡 Benefici Energetici")
-
-prod_impianto = st.session_state["prod_impianto"]
-durata_noleggio = st.session_state["durata_noleggio"] if st.session_state["durata_noleggio"] > 0 else 1
-autoconsumo_pct = st.session_state["autoconsumo_pct"] / 100.0
-costo_energia = st.session_state["costo_energia_pagata"]
-prezzo_vendita = st.session_state["prezzo_energia_venduta"]
-cessione_pct = st.session_state["cessione_pct"] / 100.0
-
-prod_media_annuale = prod_impianto / durata_noleggio if durata_noleggio > 0 else 0
-energia_autoconsumata = prod_media_annuale * autoconsumo_pct
-risparmio_autoconsumo = energia_autoconsumata * costo_energia
-energia_venduta = prod_media_annuale * cessione_pct
-ricavo_vendita = energia_venduta * prezzo_vendita
-totale_benefici =
+    "Sicilia": {"irap": 0.0390, "add_
