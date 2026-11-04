@@ -135,42 +135,4 @@ regioni_db = {
 }
 
 # ---------------------------------------------------------
-# 2. BENEFICI ENERGETICI (LAYOUT ESATTO A 4 COLONNE DA EXCEL)
-# ---------------------------------------------------------
-st.header("💡 Benefici Energetici")
-
-prod_impianto = st.session_state["prod_impianto"]
-durata_noleggio = st.session_state["durata_noleggio"]
-autoconsumo_pct = st.session_state["autoconsumo_pct"] / 100.0
-costo_energia = st.session_state["costo_energia_pagata"]
-prezzo_vendita = st.session_state["prezzo_energia_venduta"]
-cessione_pct = 1.0 - autoconsumo_pct
-
-prod_media_annuale = prod_impianto / durata_noleggio if durata_noleggio > 0 else 0
-energia_autoconsumata = prod_media_annuale * autoconsumo_pct
-risparmio_autoconsumo = energia_autoconsumata * costo_energia
-energia_venduta = prod_media_annuale * cessione_pct
-ricavo_vendita = energia_venduta * prezzo_vendita
-totale_benefici = risparmio_autoconsumo + ricavo_vendita
-
-# --- Blocco 1 ---
-col_1a, col_1b, col_1c, col_1d = st.columns([3, 2, 2, 2])
-with col_1a:
-    st.markdown("**Produzione Media Annuale**")
-with col_1b:
-    st.markdown("*Produzione Impianto/kWh*")
-    st.number_input("B2", step=500.0, key="prod_impianto", label_visibility="collapsed")
-with col_1c:
-    st.markdown("*Anni Durata Noleggio*")
-    st.number_input("C2", step=1, key="durata_noleggio", label_visibility="collapsed")
-with col_1d:
-    st.markdown("*kWh*")
-    st.text_input("D1", value=f"{prod_media_annuale:,.2f}", disabled=True, label_visibility="collapsed")
-
-st.markdown("---")
-
-# --- Blocco 2 ---
-col_2a, col_2b, col_2c, col_2d = st.columns([3, 2, 2, 2])
-with col_2a:
-    st.markdown("**Energia Autoconsumata**")
-with col_
+# 2. BENEFICI ENERGETICI (LAYOUT
