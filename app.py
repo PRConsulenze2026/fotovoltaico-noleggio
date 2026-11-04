@@ -139,4 +139,52 @@ prod_impianto = st.session_state["prod_impianto"]
 durata_noleggio = st.session_state["durata_noleggio"]
 autoconsumo_pct = st.session_state["autoconsumo_pct"] / 100.0
 costo_energia = st.session_state["costo_energia_pagata"]
-prezzo_vendita = st.session
+prezzo_vendita = st.session_state["prezzo_energia_venduta"]
+cessione_pct = 1.0 - autoconsumo_pct
+
+prod_media_annuale = prod_impianto / durata_noleggio if durata_noleggio > 0 else 0
+energia_autoconsumata = prod_media_annuale * autoconsumo_pct
+risparmio_autoconsumo = energia_autoconsumata * costo_energia
+energia_venduta = prod_media_annuale * cessione_pct
+ricavo_vendita = energia_venduta * prezzo_vendita
+totale_benefici = risparmio_autoconsumo + ricavo_vendita
+
+col_h1, col_h2, col_h3, col_h4 = st.columns([2.5, 2, 2.5, 1.5])
+
+with col_h1:
+    st.markdown("---")
+    st.markdown("**Produzione Media Annuale**")
+    st.markdown("---")
+    st.markdown("**Energia Autoconsumata**")
+    st.markdown("---")
+    st.markdown("**Risparmio in Autoconsumo**")
+    st.markdown("---")
+    st.markdown("**Energia Venduta**")
+    st.markdown("---")
+    st.markdown("**Ricavo dalla Vendita**")
+    st.markdown("---")
+    st.markdown("**Totale Benefici Energetici per Anno**")
+
+with col_h2:
+    st.markdown("*Produzione Impianto/kWh*")
+    st.number_input("B2", step=500.0, key="prod_impianto", label_visibility="collapsed")
+    st.markdown("*Produzione Media Annuale*")
+    st.text_input("D2", value=f"{energia_autoconsumata:,.2f}", disabled=True, label_visibility="collapsed")
+    st.markdown("*Energia Autoconsumata*")
+    st.text_input("D4", value=f"€ {risparmio_autoconsumo:,.2f}", disabled=True, label_visibility="collapsed")
+    st.markdown("*Produzione Media Annuale*")
+    st.text_input("D8_1", value=f"{energia_venduta:,.2f}", disabled=True, label_visibility="collapsed")
+    st.markdown("*Energia Venduta*")
+    st.text_input("D10_1", value=f"€ {ricavo_vendita:,.2f}", disabled=True, label_visibility="collapsed")
+    st.markdown("*Risparmio in Autoconsumo*")
+    st.text_input("D12_1", value=f"€ {totale_benefici:,.2f}", disabled=True, label_visibility="collapsed")
+
+with col_h3:
+    st.markdown("*Anni Durata Noleggio*")
+    st.number_input("C2", step=1, key="durata_noleggio", label_visibility="collapsed")
+    st.markdown("*Autoconsumo/Produzione in %*")
+    st.number_input("C4", step=5.0, key="autoconsumo_pct", label_visibility="collapsed")
+    st.markdown("*Costo Energia Attualmente Pagata in kWh*")
+    st.number_input("C6", step=0.01, key="costo_energia_pagata", label_visibility="collapsed")
+    st.markdown("*Cessione EE/Produzione di Energia in %*")
+    st.text_input("C8", value=f"{cessione_pct*100:.1f} %", disabled=True, label_visibility="collapsed
