@@ -245,4 +245,4 @@ with col_5a:
     st.markdown("**Ricavo dalla Vendita**")
 with col_5b:
     st.markdown("*Energia Venduta*")
-    st.text_
+    st.text_input("
