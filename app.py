@@ -234,7 +234,7 @@ else:
     st.info("Compila i dati dell'offerta nel pannello laterale per personalizzare la simulazione.")
 
 # Schede di navigazione
-panoramica, energia, cassa, dettagli = st.tabs(["📌 Panoramica", "⚡ Analisi energetica", "📊 Flussi di cassa", "📄 Dati offerta"])
+dettagli, energia, cassa, panoramica = st.tabs(["📄 Dati offerta", "⚡ Analisi energetica", "📊 Flussi di cassa", "📌 Panoramica"])
 
 with panoramica:
     st.subheader("Sintesi economica")
