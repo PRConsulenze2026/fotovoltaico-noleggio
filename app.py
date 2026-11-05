@@ -6,7 +6,7 @@ st.set_page_config(page_title="Simulatore Flusso di Cassa Fotovoltaico", layout=
 
 # CSS personalizzato per:
 # 1. Colore grigio scuro e testo bianco nei campi
-# 2. Rimozione totale delle barre di scorrimento e degli spazi vuoti sotto la tabella
+# 2. Ottimizzazione della tabella per mostrare interamente tutte le 25 righe senza scroll interno
 st.markdown("""
 <style>
 div.stNumberInput input, div.stTextInput input, div.stDateInput input {
@@ -24,11 +24,7 @@ input:disabled, textarea:disabled {
     border: 1px solid #3f3f3f !important;
     opacity: 1 !important;
 }
-div[data-testid="stDataFrame"] {
-    height: auto !important;
-}
 div[data-testid="stDataFrame"] > div {
-    height: auto !important;
     max-height: none !important;
     overflow: visible !important;
 }
@@ -264,7 +260,7 @@ with col_6d:
 st.markdown("---")
 
 # ---------------------------------------------------------
-# 3. FLUSSI DI CASSA (25 ANNI COMPLETI, SENZA INDICE)
+# 3. FLUSSI DI CASSA (25 ANNI COMPLETI, SENZA INDICE E CON ALTEZZA FISSA ADEGUATA)
 # ---------------------------------------------------------
 anni = list(range(1, 26))
 perdita_cumulata = [0.0] + [0.005 * (a - 1) for a in anni[1:]]
@@ -321,6 +317,7 @@ df_flussi = pd.DataFrame({
 df_flussi["Flusso Netto (€)"] = df_flussi[["Benefici Energetici (€)", "Benefici Fiscali (€)", "Noleggio (€)", "Manutenzione Annuale (€)", "Riscatto (€)"]].sum(axis=1)
 df_flussi["Cumulato (€)"] = df_flussi["Flusso Netto (€)"].cumsum()
 
+# Impostato height=925 per mostrare perfettamente tutte le 25 righe senza scroll interno né spazi vuoti
 st.dataframe(df_flussi.style.format({
     "Benefici Energetici (€)": "€ {:.2f}",
     "Benefici Fiscali (€)": lambda x: f"€ {x:.2f}" if pd.notnull(x) else "",
@@ -329,7 +326,7 @@ st.dataframe(df_flussi.style.format({
     "Riscatto (€)": lambda x: f"€ {x:.2f}" if pd.notnull(x) else "",
     "Flusso Netto (€)": "€ {:.2f}",
     "Cumulato (€)": "€ {:.2f}"
-}), use_container_width=True, hide_index=True)
+}), use_container_width=True, hide_index=True, height=925)
 
 # Totali Generali
 st.markdown("### 📈 Totali Generali")
