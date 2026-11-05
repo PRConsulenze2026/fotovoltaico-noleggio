@@ -258,18 +258,22 @@ with st.container(border=False):
             unsafe_allow_html=True,
         )
     with hero_dx:
+        # Logo aziendale già caricato nel repository GitHub: nessun nuovo file richiesto.
+        # Supporta anche il nome originale dell'immagine fornita.
+        logo_aziendale = next(
+            (p for nome in ("logo_eureka.png", "Logo 100x100.png", "Logo.png")
+             if (p := Path(__file__).with_name(nome)).is_file()),
+            None,
+        )
         logo_col, nome_col = st.columns([1, 3], gap="small", vertical_alignment="center")
         with logo_col:
-            percorso_logo = Path(__file__).with_name("logo_eureka.png")
-            if percorso_logo.is_file():
-                st.image(str(percorso_logo), width=64)
-            else:
-                st.markdown("☀️")
+            if logo_aziendale is not None:
+                st.image(str(logo_aziendale), width=78)
         with nome_col:
             st.markdown(
-                '<div style="color:#fff;font-weight:750;font-size:15px;line-height:1.15;">'
+                '<div style="color:#fff;font-weight:800;font-size:23px;line-height:1.15;white-space:nowrap;">'
                 'EUREKA SRL</div>'
-                '<div style="color:#d9e0e8;font-size:11px;letter-spacing:.06em;">'
+                '<div style="color:#d9e0e8;font-weight:600;font-size:14px;letter-spacing:.035em;white-space:nowrap;">'
                 'SOCIETÀ BENEFIT</div>',
                 unsafe_allow_html=True,
             )
@@ -729,4 +733,3 @@ with col_pdf:
 with col_stampa:
     st.download_button("Scarica versione per stampa", genera_html_stampa().encode("utf-8"),
                        file_name="Eureka_Stampa.html", mime="text/html", use_container_width=True)
-st.caption("Per stampare: apri il file HTML scaricato nel browser e premi Stampa. Impaginazione A3 orizzontale per leggibilità.")
