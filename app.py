@@ -79,8 +79,7 @@ def aliquota_corrente(tabella, voce):
     return st.session_state["tabella_" + tabella][voce]
 
 def regione_irpef(regione):
-    # L'IRPEF è uguale nelle due province autonome nel file di riferimento.
-    return regione.replace(" (Trento)", "").replace(" (Bolzano)", "")
+    return regione
 
 def calcola_aliquota_totale(forma, regione):
     base = aliquota_corrente("Forma giuridica", forma)
@@ -338,10 +337,10 @@ with inserimento:
                      on_change=sincronizza_aliquota)
         regione_selezionata = st.session_state.regione
         forma_selezionata = st.session_state.forma_giuridica
-        regione_irpef = regione_irpef(regione_selezionata)
+        regione_irpef_selezionata = regione_irpef(regione_selezionata)
         col_a, col_b, col_c = st.columns(3)
         col_a.metric("Aliquota Fiscale Stimata", f"{aliquota_corrente("Forma giuridica", forma_selezionata)*100:.2f}%")
-        col_b.metric("IRPEF Regionale · Aliquota Minima", f"{aliquota_corrente("IRPEF regionale minima", regione_irpef)*100:.2f}%")
+        col_b.metric("IRPEF Regionale · Aliquota Minima", f"{aliquota_corrente("IRPEF regionale minima", regione_irpef_selezionata)*100:.2f}%")
         col_c.metric("IRAP Regionale · Aliquota Ordinaria", f"{aliquota_corrente("IRAP regionale ordinaria", regione_selezionata)*100:.2f}%")
         st.number_input("Aliquota Totale (%)", min_value=0.0, max_value=100.0,
                         step=0.01, format="%.2f", key="aliquota_totale",
