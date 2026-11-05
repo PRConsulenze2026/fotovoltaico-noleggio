@@ -254,20 +254,7 @@ with col_6d:
 st.markdown("---")
 
 # ---------------------------------------------------------
-# 3. PARAMETRI NOLEGGIO OPERATIVO
-# ---------------------------------------------------------
-st.header("💳 Parametri Noleggio Operativo")
-col_n1, col_n2 = st.columns(2)
-with col_n1:
-    st.number_input("A2: Rata Mensile Noleggio (€)", step=10.0, key="rata_mensile")
-with col_n2:
-    rata_bimestrale = st.session_state["rata_mensile"] * 2.0
-    noleggio_annuale = rata_bimestrale * 6.0
-    st.write(f"**A4 Rata Bimestrale:** € {rata_bimestrale:.2f}")
-    st.write(f"**Noleggio Annuale (D2):** € {noleggio_annuale:.2f}")
-
-# ---------------------------------------------------------
-# 4. PERDITA DI ENERGIA E FLUSSI A 25 ANNI
+# 3. FLUSSI DI CASSA (INTERI, A 25 ANNI)
 # ---------------------------------------------------------
 anni = list(range(1, 26))
 perdita_cumulata = [0.0] + [0.005 * (a - 1) for a in anni[1:]]
@@ -294,11 +281,11 @@ def calcola_coefficiente_fiscale(forma, reg, add_com):
 
 coeff_fiscale = calcola_coefficiente_fiscale(st.session_state["forma_giuridica"], st.session_state["regione"], st.session_state["add_comunale"] / 100.0)
 
-beneficio_fiscale_mensile = st.session_state["rata_mensile"] * coeff_fiscale
+rata_mensile_val = st.session_state["rata_mensile"]
+beneficio_fiscale_mensile = rata_mensile_val * coeff_fiscale
 beneficio_fiscale_annuale = np.ceil(beneficio_fiscale_mensile) * 12.0
 
-st.markdown("---")
-st.subheader("📊 Flussi di Cassa Complessivi (25 Anni)")
+st.subheader("📊 Flussi di Cassa")
 
 col_opt1, col_opt2 = st.columns(2)
 with col_opt1:
@@ -308,6 +295,9 @@ with col_opt2:
 
 manut_val = st.session_state["manutenzione_default"]
 riscatto_val = st.session_state["riscatto_default"]
+
+rata_bimestrale = rata_mensile_val * 2.0
+noleggio_annuale = rata_bimestrale * 6.0
 
 df_flussi = pd.DataFrame({
     "Anno": anni,
@@ -321,6 +311,7 @@ df_flussi = pd.DataFrame({
 df_flussi["Flusso Netto (€)"] = df_flussi[["Benefici Energetici (€)", "Benefici Fiscali (€)", "Noleggio (€)", "Manutenzione Annuale (€)", "Riscatto (€)"]].sum(axis=1)
 df_flussi["Cumulato (€)"] = df_flussi["Flusso Netto (€)"].cumsum()
 
+# Tabella intera visibile a 25 anni
 st.dataframe(df_flussi.style.format({
     "Benefici Energetici (€)": "€ {:.2f}",
     "Benefici Fiscali (€)": lambda x: f"€ {x:.2f}" if pd.notnull(x) else "",
@@ -329,7 +320,7 @@ st.dataframe(df_flussi.style.format({
     "Riscatto (€)": lambda x: f"€ {x:.2f}" if pd.notnull(x) else "",
     "Flusso Netto (€)": "€ {:.2f}",
     "Cumulato (€)": "€ {:.2f}"
-}), use_container_width=True)
+}), use_container_width=True, height=600)
 
 # Totali Generali
 st.markdown("### 📈 Totali Generali")
@@ -345,3 +336,16 @@ m1.metric("Totale Benefici Energetici", f"€ {tot_energetici:,.2f}")
 m2.metric("Totale Benefici Fiscali", f"€ {tot_fiscali:,.2f}")
 m3.metric("Totale Noleggio Operativo", f"€ {tot_noleggio:,.2f}")
 m4.metric("Flusso Netto Cumulato a 25 Anni", f"€ {tot_netto:,.2f}")
+
+st.markdown("---")
+
+# ---------------------------------------------------------
+# 4. PARAMETRI NOLEGGIO OPERATIVO (POSIZIONATO DOPO I FLUSSI)
+# ---------------------------------------------------------
+st.header("💳 Parametri Noleggio Operativo")
+col_n1, col_n2 = st.columns(2)
+with col_n1:
+    st.number_input("A2: Rata Mensile Noleggio (€)", step=10.0, key="rata_mensile")
+with col_n2:
+    st.write(f"**A4 Rata Bimestrale:** € {rata_bimestrale:.2f}")
+    st.write(f"**Noleggio Annuale (D2):** € {noleggio_annuale:.2f}")
