@@ -52,34 +52,32 @@ DEFAULTS = {
     "prezzo_energia_venduta": 0.0, "rata_mensile": 0.0,
     "manutenzione_default": 0.0, "riscatto_default": 0.0,
     "forma_giuridica": "Società di Capitali (S.r.l., S.p.A.)",
-    "regione": "Puglia", "add_comunale": 0.8,
+    "regione": "Puglia", "aliquota_totale": 30.05, "aliquota_modificata": False,
 }
 for key, value in DEFAULTS.items():
     if key not in st.session_state:
         st.session_state[key] = value
 
-regioni_db = {
-    "Abruzzo": {"irap": .0390, "add_reg_min": .0173, "add_reg_max": .0333},
-    "Basilicata": {"irap": .0390, "add_reg_min": .0123, "add_reg_max": .0233},
-    "Calabria": {"irap": .0482, "add_reg_min": .0203, "add_reg_max": .0333},
-    "Campania": {"irap": .0497, "add_reg_min": .0203, "add_reg_max": .0333},
-    "Emilia-Romagna": {"irap": .0390, "add_reg_min": .0133, "add_reg_max": .0227},
-    "Friuli-Venezia Giulia": {"irap": .0390, "add_reg_min": .0123, "add_reg_max": .0123},
-    "Lazio": {"irap": .0482, "add_reg_min": .0173, "add_reg_max": .0333},
-    "Liguria": {"irap": .0390, "add_reg_min": .0123, "add_reg_max": .0333},
-    "Lombardia": {"irap": .0390, "add_reg_min": .0123, "add_reg_max": .0173},
-    "Marche": {"irap": .0390, "add_reg_min": .0123, "add_reg_max": .0173},
-    "Molise": {"irap": .0482, "add_reg_min": .0173, "add_reg_max": .0333},
-    "Piemonte": {"irap": .0390, "add_reg_min": .0162, "add_reg_max": .0333},
-    "Puglia": {"irap": .0482, "add_reg_min": .0123, "add_reg_max": .0173},
-    "Sardegna": {"irap": .0293, "add_reg_min": .0123, "add_reg_max": .0123},
-    "Sicilia": {"irap": .0390, "add_reg_min": .0123, "add_reg_max": .0173},
-    "Toscana": {"irap": .0390, "add_reg_min": .0142, "add_reg_max": .0173},
-    "Trentino-Alto Adige": {"irap": .0346, "add_reg_min": .0123, "add_reg_max": .0123},
-    "Umbria": {"irap": .0390, "add_reg_min": .0123, "add_reg_max": .0183},
-    "Valle d'Aosta": {"irap": .0390, "add_reg_min": .0123, "add_reg_max": .0123},
-    "Veneto": {"irap": .0390, "add_reg_min": .0123, "add_reg_max": .0123},
-}
+ALIQUOTE_FORMA = {'Regime Forfettario': 0.0, 'Società di Capitali (S.r.l., S.p.A.)': 0.24, 'Ditta Individuale / S.n.c. (Scaglione IRPEF medio)': 0.35, 'Ditta Individuale / S.n.c. (Scaglione IRPEF massimo)': 0.43}
+ALIQUOTE_IRPEF_REGIONALI = {'Abruzzo': 0.0173, 'Basilicata': 0.0123, 'Calabria': 0.0203, 'Campania': 0.0203, 'Emilia-Romagna': 0.0133, 'Friuli-Venezia Giulia': 0.0123, 'Lazio': 0.0173, 'Liguria': 0.0123, 'Lombardia': 0.0123, 'Marche': 0.0123, 'Molise': 0.0173, 'Piemonte': 0.0162, 'Puglia': 0.0123, 'Sardegna': 0.0123, 'Sicilia': 0.0123, 'Toscana': 0.0142, 'Umbria': 0.0123, "Valle d'Aosta": 0.0123, 'Veneto': 0.0123, 'Trentino-Alto Adige (Trento)': 0.0123, 'Trentino-Alto Adige (Bolzano)': 0.0123}
+ALIQUOTE_IRAP_REGIONALI = {'Abruzzo': 0.039, 'Basilicata': 0.039, 'Calabria': 0.0482, 'Campania': 0.0497, 'Emilia-Romagna': 0.039, 'Friuli-Venezia Giulia': 0.039, 'Lazio': 0.0482, 'Liguria': 0.039, 'Lombardia': 0.039, 'Marche': 0.039, 'Molise': 0.0482, 'Piemonte': 0.039, 'Puglia': 0.0482, 'Sardegna': 0.0293, 'Sicilia': 0.039, 'Toscana': 0.039, 'Trentino-Alto Adige (Bolzano)': 0.0268, 'Trentino-Alto Adige (Trento)': 0.0346, 'Umbria': 0.039, "Valle d'Aosta": 0.039, 'Veneto': 0.039}
+
+def calcola_aliquota_totale(forma, regione):
+    # Modello additivo richiesto; valori del foglio Tabelle Aliquote.
+    base = ALIQUOTE_FORMA[forma]
+    if forma == "Regime Forfettario":
+        return 0.0
+    reg_irpef = regione.replace(" (Trento)", "").replace(" (Bolzano)", "")
+    return round(100 * (base + ALIQUOTE_IRPEF_REGIONALI[reg_irpef]
+                        + ALIQUOTE_IRAP_REGIONALI[regione]), 2)
+
+def sincronizza_aliquota():
+    st.session_state.aliquota_totale = calcola_aliquota_totale(
+        st.session_state.forma_giuridica, st.session_state.regione)
+
+def aggiorna_aliquota_manuale():
+    st.session_state.aliquota_modificata = True
+
 
 def euro(value):
     return f"€ {value:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
@@ -92,13 +90,10 @@ def reset_dati():
         st.session_state[key] = value
     st.rerun()
 
-def calcola_coefficiente_fiscale(forma, regione, add_com):
+def calcola_coefficiente_fiscale(forma, regione, aliquota_totale_percentuale):
     if forma == "Regime Forfettario":
         return 0.0
-    info = regioni_db[regione]
-    if forma == "Società di Capitali (S.r.l., S.p.A.)":
-        return 0.24 + info["irap"]
-    return 0.35 + info["irap"] + info["add_reg_min"] + add_com
+    return aliquota_totale_percentuale / 100.0
 
 # =========================================================
 # SIDEBAR: INPUT GUIDATI
@@ -149,7 +144,7 @@ df_perdita = pd.DataFrame({
 coeff_fiscale = calcola_coefficiente_fiscale(
     st.session_state.forma_giuridica,
     st.session_state.regione,
-    st.session_state.add_comunale / 100,
+    st.session_state.aliquota_totale,
 )
 rata_mensile = float(st.session_state.rata_mensile)
 beneficio_fiscale_mensile = rata_mensile * coeff_fiscale
@@ -240,7 +235,7 @@ with inserimento:
         reset_dati()
     st.divider()
 
-    with st.expander("1 · Cliente e offerta", expanded=True):
+    with st.expander("1 · Anagrafica Cliente", expanded=True):
         st.text_input("Cliente / ragione sociale", key="azienda", placeholder="Nome azienda")
         st.text_input("Indirizzo", key="indirizzo", placeholder="Via e numero civico")
         c1, c2 = st.columns(2)
@@ -249,7 +244,8 @@ with inserimento:
             st.text_input("CAP", key="cap")
         with c2:
             st.text_input("Provincia", key="prov", max_chars=2)
-            st.date_input("Data offerta", key="data_offerta")
+            st.date_input("Data offerta", key="data_offerta", format="DD/MM/YYYY")
+        st.selectbox("Regione", list(ALIQUOTE_IRPEF_REGIONALI.keys()), key="regione", on_change=sincronizza_aliquota)
         st.text_input("Protocollo offerta", key="protocollo")
         st.number_input("Potenza impianto (kWp)", min_value=0.0, step=.1, format="%.3f", key="potenza_kwp")
 
@@ -269,11 +265,24 @@ with inserimento:
         st.number_input("Riscatto finale (€)", min_value=0.0, step=50.0, key="riscatto_default")
 
     with st.expander("4 · Parametri fiscali", expanded=False):
-        forme = ["Società di Capitali (S.r.l., S.p.A.)", "Impresa individuale / Società di persone", "Regime Forfettario"]
-        st.selectbox("Forma giuridica", forme, key="forma_giuridica")
-        st.selectbox("Regione", list(regioni_db.keys()), key="regione")
-        st.number_input("Addizionale comunale (%)", min_value=0.0, max_value=3.0, step=.1, format="%.2f", key="add_comunale")
-        st.caption("Aliquote e beneficio fiscale sono parametri semplificati del modello: verificarli con il consulente fiscale.")
+        st.selectbox("Forma giuridica", list(ALIQUOTE_FORMA.keys()), key="forma_giuridica",
+                     on_change=sincronizza_aliquota)
+        regione_selezionata = st.session_state.regione
+        forma_selezionata = st.session_state.forma_giuridica
+        regione_irpef = regione_selezionata.replace(" (Trento)", "").replace(" (Bolzano)", "")
+        col_a, col_b, col_c = st.columns(3)
+        col_a.metric("Aliquota Fiscale Stimata", f"{ALIQUOTE_FORMA[forma_selezionata]*100:.2f}%")
+        col_b.metric("IRPEF Regionale · Aliquota Minima", f"{ALIQUOTE_IRPEF_REGIONALI[regione_irpef]*100:.2f}%")
+        col_c.metric("IRAP Regionale · Aliquota Ordinaria", f"{ALIQUOTE_IRAP_REGIONALI[regione_selezionata]*100:.2f}%")
+        st.number_input("Aliquota Totale (%)", min_value=0.0, max_value=100.0,
+                        step=0.01, format="%.2f", key="aliquota_totale",
+                        on_change=aggiorna_aliquota_manuale,
+                        help="Valore proposto: somma delle tre aliquote indicate; puoi modificarlo manualmente.")
+        proposta = calcola_aliquota_totale(forma_selezionata, regione_selezionata)
+        st.caption(f"Valore automatico secondo il foglio Tabelle Aliquote: {proposta:.2f}%. "
+                   "La modifica manuale resta valida finché non cambi forma giuridica o regione.")
+        st.caption("Le aliquote del file Excel sono indicative: la somma non rappresenta necessariamente "
+                   "l'imposta effettiva applicabile. Verificare con il consulente fiscale.")
 
 with panoramica:
     st.subheader("Sintesi economica")
@@ -516,6 +525,8 @@ def _dati_allegato():
         ("Potenza impianto", f"{_fmt_num(st.session_state.potenza_kwp)} kWp"),
         ("Durata noleggio", f"{durata_noleggio} anni"),
         ("Referente commerciale", st.session_state.referente_commerciale or "—"),
+        ("Regione cliente", st.session_state.regione),
+        ("Aliquota Totale", f"{st.session_state.aliquota_totale:.2f}%"),
     ]
 
 # Le intestazioni riprendono le dieci e le otto colonne dei due fogli Excel.
