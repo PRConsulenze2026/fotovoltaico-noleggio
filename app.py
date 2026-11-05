@@ -2,6 +2,7 @@ from pathlib import Path
 import streamlit as st
 import pandas as pd
 import numpy as np
+import time
 from html import escape as html_escape
 
 # =========================================================
@@ -62,22 +63,90 @@ ALIQUOTE_FORMA = {'Regime Forfettario': 0.0, 'Società di Capitali (S.r.l., S.p.
 ALIQUOTE_IRPEF_REGIONALI = {'Abruzzo': 0.0173, 'Basilicata': 0.0123, 'Calabria': 0.0203, 'Campania': 0.0203, 'Emilia-Romagna': 0.0133, 'Friuli-Venezia Giulia': 0.0123, 'Lazio': 0.0173, 'Liguria': 0.0123, 'Lombardia': 0.0123, 'Marche': 0.0123, 'Molise': 0.0173, 'Piemonte': 0.0162, 'Puglia': 0.0123, 'Sardegna': 0.0123, 'Sicilia': 0.0123, 'Toscana': 0.0142, 'Umbria': 0.0123, "Valle d'Aosta": 0.0123, 'Veneto': 0.0123, 'Trentino-Alto Adige (Trento)': 0.0123, 'Trentino-Alto Adige (Bolzano)': 0.0123}
 ALIQUOTE_IRAP_REGIONALI = {'Abruzzo': 0.039, 'Basilicata': 0.039, 'Calabria': 0.0482, 'Campania': 0.0497, 'Emilia-Romagna': 0.039, 'Friuli-Venezia Giulia': 0.039, 'Lazio': 0.0482, 'Liguria': 0.039, 'Lombardia': 0.039, 'Marche': 0.039, 'Molise': 0.0482, 'Piemonte': 0.039, 'Puglia': 0.0482, 'Sardegna': 0.0293, 'Sicilia': 0.039, 'Toscana': 0.039, 'Trentino-Alto Adige (Bolzano)': 0.0268, 'Trentino-Alto Adige (Trento)': 0.0346, 'Umbria': 0.039, "Valle d'Aosta": 0.039, 'Veneto': 0.039}
 
+# Valori iniziali tratti dal foglio Excel "Tabelle Aliquote".
+# Le modifiche sono mantenute nella sessione Streamlit, non nel file Excel.
+TABELLE_ALIQUOTE = {
+    "Forma giuridica": ALIQUOTE_FORMA,
+    "IRPEF regionale minima": ALIQUOTE_IRPEF_REGIONALI,
+    "IRAP regionale ordinaria": ALIQUOTE_IRAP_REGIONALI,
+}
+for nome_tabella, valori_iniziali in TABELLE_ALIQUOTE.items():
+    chiave = "tabella_" + nome_tabella
+    if chiave not in st.session_state:
+        st.session_state[chiave] = dict(valori_iniziali)
+
+def aliquota_corrente(tabella, voce):
+    return st.session_state["tabella_" + tabella][voce]
+
+def regione_irpef(regione):
+    # L'IRPEF è uguale nelle due province autonome nel file di riferimento.
+    return regione.replace(" (Trento)", "").replace(" (Bolzano)", "")
+
 def calcola_aliquota_totale(forma, regione):
-    # Modello additivo richiesto; valori del foglio Tabelle Aliquote.
-    base = ALIQUOTE_FORMA[forma]
+    base = aliquota_corrente("Forma giuridica", forma)
     if forma == "Regime Forfettario":
         return 0.0
-    reg_irpef = regione.replace(" (Trento)", "").replace(" (Bolzano)", "")
-    return round(100 * (base + ALIQUOTE_IRPEF_REGIONALI[reg_irpef]
-                        + ALIQUOTE_IRAP_REGIONALI[regione]), 2)
+    irpef = aliquota_corrente("IRPEF regionale minima", regione_irpef(regione))
+    irap = aliquota_corrente("IRAP regionale ordinaria", regione)
+    return round(100 * (base + irpef + irap), 2)
 
 def sincronizza_aliquota():
     st.session_state.aliquota_totale = calcola_aliquota_totale(
         st.session_state.forma_giuridica, st.session_state.regione)
+    st.session_state.aliquota_modificata = False
 
 def aggiorna_aliquota_manuale():
     st.session_state.aliquota_modificata = True
 
+def modifica_blocco_aliquota(chiave):
+    if st.session_state["bloccata_" + chiave]:
+        st.session_state.pop("scadenza_" + chiave, None)
+    else:
+        st.session_state["scadenza_" + chiave] = time.time() + 300
+
+def aggiorna_valore_aliquota(tabella, voce, chiave):
+    st.session_state["tabella_" + tabella][voce] = (
+        st.session_state["valore_" + chiave] / 100.0)
+    sincronizza_aliquota()
+
+def riga_aliquota(tabella, voce, indice):
+    chiave = f"{['forma','irpef','irap'][['Forma giuridica','IRPEF regionale minima','IRAP regionale ordinaria'].index(tabella)]}_{indice}"
+    blocco = "bloccata_" + chiave
+    scadenza = "scadenza_" + chiave
+    valore = "valore_" + chiave
+    if blocco not in st.session_state:
+        st.session_state[blocco] = True
+    if not st.session_state[blocco] and time.time() >= st.session_state.get(scadenza, 0):
+        st.session_state[blocco] = True
+        st.session_state.pop(scadenza, None)
+    if valore not in st.session_state:
+        st.session_state[valore] = round(aliquota_corrente(tabella, voce) * 100, 4)
+    nome_col, aliquota_col, protezione_col = st.columns([5, 2, 2], vertical_alignment="center")
+    nome_col.write(voce)
+    aliquota_col.number_input(
+        f"Aliquota (%) · {voce}", min_value=0.0, max_value=100.0,
+        step=0.01, format="%.4f", key=valore,
+        disabled=st.session_state[blocco], label_visibility="collapsed",
+        on_change=aggiorna_valore_aliquota, args=(tabella, voce, chiave))
+    protezione_col.checkbox(
+        f"Protetta · {voce}", key=blocco,
+        on_change=modifica_blocco_aliquota, args=(chiave,))
+    if not st.session_state[blocco]:
+        rimanenti = max(0, int(st.session_state[scadenza] - time.time()))
+        protezione_col.caption(f"Riblocco tra {rimanenti // 60}:{rimanenti % 60:02d}")
+
+@st.fragment(run_every="5s")
+def mostra_tabelle_aliquote():
+    st.caption("Ogni aliquota è protetta per impostazione predefinita. "
+               "Togli il flag della singola riga per modificarla; "
+               "la protezione torna automaticamente entro 5 minuti.")
+    for tabella in TABELLE_ALIQUOTE:
+        st.markdown(f"#### {tabella}")
+        for indice, voce in enumerate(st.session_state["tabella_" + tabella]):
+            riga_aliquota(tabella, voce, indice)
+        st.divider()
+    st.caption("Le variazioni si applicano ai calcoli della sessione corrente. "
+               "La protezione impedisce la modifica accidentale, non è un controllo di accesso.")
 
 def euro(value):
     return f"€ {value:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
@@ -226,7 +295,7 @@ else:
     st.info("Compila i dati dell'offerta nella scheda Inserimento Dati per personalizzare la simulazione.")
 
 # Schede di navigazione
-inserimento, dettagli, energia, cassa, panoramica = st.tabs(["📝 Inserimento Dati", "📄 Dati offerta", "⚡ Analisi energetica", "📊 Flussi di cassa", "📌 Panoramica"])
+inserimento, dettagli, energia, noleggio, cassa, tabelle_aliquote = st.tabs(["📝 Inserimento Dati", "📄 Dati offerta", "⚡ Analisi energetica", "💶 Noleggio", "📊 Flussi di cassa", "📋 Tabelle Aliquote"])
 
 with inserimento:
     st.subheader("Inserimento Dati")
@@ -245,7 +314,7 @@ with inserimento:
         with c2:
             st.text_input("Provincia", key="prov", max_chars=2)
             st.date_input("Data offerta", key="data_offerta", format="DD/MM/YYYY")
-        st.selectbox("Regione", list(ALIQUOTE_IRPEF_REGIONALI.keys()), key="regione", on_change=sincronizza_aliquota)
+        st.selectbox("Regione", list(st.session_state["tabella_IRPEF regionale minima"].keys()), key="regione", on_change=sincronizza_aliquota)
         st.text_input("Protocollo offerta", key="protocollo")
         st.number_input("Potenza impianto (kWp)", min_value=0.0, step=.1, format="%.3f", key="potenza_kwp")
 
@@ -265,15 +334,15 @@ with inserimento:
         st.number_input("Riscatto finale (€)", min_value=0.0, step=50.0, key="riscatto_default")
 
     with st.expander("4 · Parametri fiscali", expanded=False):
-        st.selectbox("Forma giuridica", list(ALIQUOTE_FORMA.keys()), key="forma_giuridica",
+        st.selectbox("Forma giuridica", list(st.session_state["tabella_Forma giuridica"].keys()), key="forma_giuridica",
                      on_change=sincronizza_aliquota)
         regione_selezionata = st.session_state.regione
         forma_selezionata = st.session_state.forma_giuridica
-        regione_irpef = regione_selezionata.replace(" (Trento)", "").replace(" (Bolzano)", "")
+        regione_irpef = regione_irpef(regione_selezionata)
         col_a, col_b, col_c = st.columns(3)
-        col_a.metric("Aliquota Fiscale Stimata", f"{ALIQUOTE_FORMA[forma_selezionata]*100:.2f}%")
-        col_b.metric("IRPEF Regionale · Aliquota Minima", f"{ALIQUOTE_IRPEF_REGIONALI[regione_irpef]*100:.2f}%")
-        col_c.metric("IRAP Regionale · Aliquota Ordinaria", f"{ALIQUOTE_IRAP_REGIONALI[regione_selezionata]*100:.2f}%")
+        col_a.metric("Aliquota Fiscale Stimata", f"{aliquota_corrente("Forma giuridica", forma_selezionata)*100:.2f}%")
+        col_b.metric("IRPEF Regionale · Aliquota Minima", f"{aliquota_corrente("IRPEF regionale minima", regione_irpef)*100:.2f}%")
+        col_c.metric("IRAP Regionale · Aliquota Ordinaria", f"{aliquota_corrente("IRAP regionale ordinaria", regione_selezionata)*100:.2f}%")
         st.number_input("Aliquota Totale (%)", min_value=0.0, max_value=100.0,
                         step=0.01, format="%.2f", key="aliquota_totale",
                         on_change=aggiorna_aliquota_manuale,
@@ -283,24 +352,6 @@ with inserimento:
                    "La modifica manuale resta valida finché non cambi forma giuridica o regione.")
         st.caption("Le aliquote del file Excel sono indicative: la somma non rappresenta necessariamente "
                    "l'imposta effettiva applicabile. Verificare con il consulente fiscale.")
-
-with panoramica:
-    st.subheader("Sintesi economica")
-    st.markdown("<p class='section-note'>Valori calcolati sulla base dei parametri della scheda Inserimento Dati.</p>", unsafe_allow_html=True)
-    a, b, c = st.columns(3)
-    a.metric("Risparmio da autoconsumo", euro(risparmio_autoconsumo))
-    b.metric("Ricavo da energia ceduta", euro(ricavo_vendita))
-    c.metric("Beneficio fiscale annuo stimato", euro(beneficio_fiscale_annuale))
-
-    chart_df = df_flussi[["Anno", "Flusso netto (€)", "Cumulato (€)"]].set_index("Anno")
-    st.markdown("#### Evoluzione economica su 25 anni")
-    st.dataframe(chart_df, use_container_width=True)
-    break_even = next((int(row["Anno"]) for _, row in df_flussi.iterrows() if row["Cumulato (€)"] >= 0), None)
-    if break_even:
-        st.success(f"Il flusso cumulato raggiunge un valore non negativo nell'anno {break_even}.")
-    else:
-        st.warning("Con i parametri attuali il flusso cumulato non diventa positivo nei 25 anni simulati.")
-    st.caption("Il punto di pareggio è calcolato sul flusso cumulato del modello, senza attualizzazione finanziaria.")
 
 with energia:
     st.subheader("Benefici Energetici")
@@ -452,12 +503,14 @@ with energia:
         df_perdita.rename(columns=intestazioni_energia_excel).to_csv(index=False, sep=";", decimal=",").encode("utf-8-sig"),
         file_name="Eureka_Perdite_di_Energia.csv", mime="text/csv")
 
-with cassa:
-    st.subheader("Flussi di cassa")
+with noleggio:
+    st.subheader("Noleggio")
     f1, f2, f3 = st.columns(3)
     f1.metric("Rata mensile", euro(rata_mensile))
     f2.metric("Rata bimestrale", euro(rata_bimestrale))
     f3.metric("Noleggio annuale", euro(noleggio_annuale))
+
+with cassa:
     st.markdown("#### Flussi di Cassa · prospetto completo (25 anni)")
     st.caption("8 colonne come nel foglio Excel 'Flussi di Cassa'. Scorri orizzontalmente per vedere tutte le voci.")
     st.dataframe(
@@ -467,6 +520,11 @@ with cassa:
     st.download_button("Esporta Flussi di Cassa (CSV)",
         df_flussi.to_csv(index=False, sep=";", decimal=",").encode("utf-8-sig"),
         file_name="Eureka_Flussi_di_Cassa.csv", mime="text/csv")
+
+with tabelle_aliquote:
+    st.subheader("Tabelle Aliquote")
+    st.caption("Valori di riferimento dal foglio Excel «Tabelle Aliquote».")
+    mostra_tabelle_aliquote()
 
 with dettagli:
     st.subheader("Riepilogo dell'offerta")
