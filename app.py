@@ -6,7 +6,7 @@ st.set_page_config(page_title="Simulatore Flusso di Cassa Fotovoltaico", layout=
 
 # CSS personalizzato per:
 # 1. Colore grigio scuro e testo bianco nei campi
-# 2. Rimozione della barra di scorrimento interna ed estensione completa della tabella a 25 righe
+# 2. Rimozione della barra di scorrimento interna ed estensione completa della tabella
 st.markdown("""
 <style>
 div.stNumberInput input, div.stTextInput input, div.stDateInput input {
@@ -260,7 +260,7 @@ with col_6d:
 st.markdown("---")
 
 # ---------------------------------------------------------
-# 3. FLUSSI DI CASSA (25 ANNI COMPLETI FINO AL RIGO 25, SENZA INDICE)
+# 3. FLUSSI DI CASSA (25 ANNI, SENZA INDICE E SENZA RIGHE VUOTE)
 # ---------------------------------------------------------
 anni = list(range(1, 26))
 perdita_cumulata = [0.0] + [0.005 * (a - 1) for a in anni[1:]]
@@ -317,8 +317,8 @@ df_flussi = pd.DataFrame({
 df_flussi["Flusso Netto (€)"] = df_flussi[["Benefici Energetici (€)", "Benefici Fiscali (€)", "Noleggio (€)", "Manutenzione Annuale (€)", "Riscatto (€)"]].sum(axis=1)
 df_flussi["Cumulato (€)"] = df_flussi["Flusso Netto (€)"].cumsum()
 
-# Tabella intera con index nascosto e formattazione monetaria
-st.dataframe(df_flussi.style.hide(axis="index").format({
+# Tabella intera con hide_index=True per rimuovere la colonna numerica e altezza ottimizzata per evitare righe vuote
+st.dataframe(df_flussi.style.format({
     "Benefici Energetici (€)": "€ {:.2f}",
     "Benefici Fiscali (€)": lambda x: f"€ {x:.2f}" if pd.notnull(x) else "",
     "Noleggio (€)": lambda x: f"€ {x:.2f}" if pd.notnull(x) else "",
@@ -326,7 +326,7 @@ st.dataframe(df_flussi.style.hide(axis="index").format({
     "Riscatto (€)": lambda x: f"€ {x:.2f}" if pd.notnull(x) else "",
     "Flusso Netto (€)": "€ {:.2f}",
     "Cumulato (€)": "€ {:.2f}"
-}), use_container_width=True, height=1050)
+}), use_container_width=True, hide_index=True, height=950)
 
 # Totali Generali
 st.markdown("### 📈 Totali Generali")
