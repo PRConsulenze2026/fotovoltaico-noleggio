@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+from html import escape as html_escape
 
 # =========================================================
 # CONFIGURAZIONE E STILE
@@ -101,7 +102,7 @@ def calcola_coefficiente_fiscale(forma, regione, add_com):
 # =========================================================
 # SIDEBAR: INPUT GUIDATI
 # =========================================================
-st.sidebar.markdown("# ☀️ SolarCash")
+st.sidebar.markdown("# EUREKA SRL")
 st.sidebar.caption("EUREKA SRL · SOCIETÀ BENEFIT")
 st.sidebar.caption("Simulatore di convenienza fotovoltaica")
 st.sidebar.text_input("Referente commerciale Eureka", key="referente_commerciale")
@@ -217,7 +218,7 @@ cliente = st.session_state.azienda.strip() or "Nuova simulazione"
 st.markdown(f"""
 <div class="hero">
   <h1>☀️ Simulatore fotovoltaico</h1>
-  <p>Analisi economica del noleggio operativo · {cliente}</p>
+  <p>Analisi economica del noleggio operativo · {html_escape(cliente)}</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -260,17 +261,18 @@ with energia:
     e1.metric("Energia autoconsumata", f"{numero(energia_autoconsumata)} kWh/anno")
     e2.metric("Energia ceduta", f"{numero(energia_venduta)} kWh/anno")
     e3.metric("Benefici complessivi", euro(totale_benefici))
-    st.markdown("#### Andamento dei benefici energetici")
-    st.dataframe(df_perdita[["Anno", "Benefici energetici (€)"]], use_container_width=True, hide_index=True)
-    with st.expander("Mostra dettaglio annuale della produzione e del degrado"):
-        st.dataframe(
-            df_perdita.style.format({
-                "Efficienza residua (%)": "{:.1%}", "Perdita cumulata (%)": "{:.1%}",
-                "Autoconsumo perso (kWh)": "{:,.2f}", "Autoconsumo netto (kWh)": "{:,.2f}",
-                "Energia ceduta persa (kWh)": "{:,.2f}", "Energia ceduta netta (kWh)": "{:,.2f}",
-                "Risparmio autoconsumo (€)": "€ {:,.2f}", "Ricavo vendita (€)": "€ {:,.2f}",
-                "Benefici energetici (€)": "€ {:,.2f}",
-            }), use_container_width=True, hide_index=True, height=520)
+    st.markdown("#### Perdite di Energia · prospetto completo (25 anni)")
+    st.caption("10 colonne come nel foglio Excel 'Perdite di Energia'. Scorri orizzontalmente per vedere tutte le voci.")
+    st.dataframe(
+        df_perdita.style.format({
+            "Efficienza residua (%)": "{:.2%}",
+            "Perdita cumulata (%)": "{:.2%}",
+            **{c: "{:,.2f}" for c in df_perdita.columns if c != "Anno" and "(%)" not in c},
+        }), use_container_width=True, hide_index=True, height=900,
+    )
+    st.download_button("Esporta Perdite di Energia (CSV)",
+        df_perdita.to_csv(index=False, sep=";", decimal=",").encode("utf-8-sig"),
+        file_name="Eureka_Perdite_di_Energia.csv", mime="text/csv")
 
 with cassa:
     st.subheader("Flussi di cassa")
@@ -278,15 +280,15 @@ with cassa:
     f1.metric("Rata mensile", euro(rata_mensile))
     f2.metric("Rata bimestrale", euro(rata_bimestrale))
     f3.metric("Noleggio annuale", euro(noleggio_annuale))
-    st.markdown("#### Flusso netto e cumulato")
-    st.dataframe(df_flussi[["Anno", "Flusso netto (€)", "Cumulato (€)"]], use_container_width=True, hide_index=True)
-    st.markdown("#### Prospetto completo")
+    st.markdown("#### Flussi di Cassa · prospetto completo (25 anni)")
+    st.caption("8 colonne come nel foglio Excel 'Flussi di Cassa'. Scorri orizzontalmente per vedere tutte le voci.")
     st.dataframe(
-        df_flussi.style.format({c: (lambda x: "" if pd.isna(x) else euro(x)) for c in colonne_flusso})
-            .format({"Flusso netto (€)": euro, "Cumulato (€)": euro}),
-        use_container_width=True, hide_index=True, height=560)
-    csv = df_flussi.to_csv(index=False).encode("utf-8-sig")
-    st.download_button("⬇️ Esporta flussi di cassa in CSV", csv, "flussi_di_cassa_fotovoltaico.csv", "text/csv", use_container_width=False)
+        df_flussi.style.format({c: (lambda x: "" if pd.isna(x) else euro(x)) for c in df_flussi.columns if c != "Anno"}),
+        use_container_width=True, hide_index=True, height=900,
+    )
+    st.download_button("Esporta Flussi di Cassa (CSV)",
+        df_flussi.to_csv(index=False, sep=";", decimal=",").encode("utf-8-sig"),
+        file_name="Eureka_Flussi_di_Cassa.csv", mime="text/csv")
 
 with dettagli:
     st.subheader("Riepilogo dell'offerta")
@@ -314,7 +316,6 @@ st.caption("Eureka Srl Società Benefit · Simulatore di supporto commerciale ·
 # =========================================================
 # ALLEGATO BUSINESS PLAN: PDF E STAMPA
 # =========================================================
-from html import escape as html_escape
 from io import BytesIO
 from pathlib import Path
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, KeepTogether
@@ -348,70 +349,108 @@ def _dati_allegato():
         ("Referente commerciale", st.session_state.referente_commerciale or "—"),
     ]
 
+# Le intestazioni riprendono le dieci e le otto colonne dei due fogli Excel.
+ENERGIA_COLONNE = [
+    ("Anno", "Anno"),
+    ("Efficienza Residua Stimata (%)", "Efficienza residua (%)"),
+    ("Perdita di Energia Cumulata (%)", "Perdita cumulata (%)"),
+    ("Energia Autoconsumata (Perdita in kWh)", "Autoconsumo perso (kWh)"),
+    ("Energia Autoconsumata (kWh)", "Autoconsumo netto (kWh)"),
+    ("Energia Venduta (Perdita in kWh)", "Energia ceduta persa (kWh)"),
+    ("Energia Venduta (kWh)", "Energia ceduta netta (kWh)"),
+    ("Risparmio in Autoconsumo (€)", "Risparmio autoconsumo (€)"),
+    ("Ricavo dalla Vendita (€)", "Ricavo vendita (€)"),
+    ("Totale Benefici Energetici per Anno (€)", "Benefici energetici (€)"),
+]
+CASSA_COLONNE = [
+    ("Anno", "Anno"),
+    ("Benefici Energetici (€)", "Benefici energetici (€)"),
+    ("Benefici Fiscali (€)", "Benefici fiscali (€)"),
+    ("Noleggio (€)", "Noleggio (€)"),
+    ("Manutenzione Annuale (€)", "Manutenzione (€)"),
+    ("Riscatto (€)", "Riscatto (€)"),
+    ("Flusso Netto (€)", "Flusso netto (€)"),
+    ("Cumulato (€)", "Cumulato (€)"),
+]
+
 def _tabelle_allegato():
-    energia_tab = [["Anno", "Autoconsumo (kWh)", "Energia ceduta (kWh)", "Benefici energetici (€)"]]
-    for _, r in df_perdita.iterrows():
-        energia_tab.append([
-            str(int(r["Anno"])),
-            _fmt_num(r["Autoconsumo netto (kWh)"]),
-            _fmt_num(r["Energia ceduta netta (kWh)"]),
-            _fmt_num(r["Benefici energetici (€)"]),
-        ])
-    cassa_tab = [["Anno", "Benefici energetici", "Benefici fiscali", "Noleggio", "Manutenzione", "Riscatto", "Netto", "Cumulato"]]
-    for _, r in df_flussi.iterrows():
-        cassa_tab.append([str(int(r["Anno"]))] + [
-            _fmt_num(0 if pd.isna(r[k]) else r[k]) for k in
-            ["Benefici energetici (€)", "Benefici fiscali (€)", "Noleggio (€)",
-             "Manutenzione (€)", "Riscatto (€)", "Flusso netto (€)", "Cumulato (€)"]
-        ])
-    return energia_tab, cassa_tab
+    def costruisci(df, colonne):
+        rows = [[nome for nome, _ in colonne]]
+        for _, r in df.iterrows():
+            values = []
+            for nome, campo in colonne:
+                val = r[campo]
+                if pd.isna(val):
+                    values.append("")  # Celle vuote come nel foglio Flussi di Cassa
+                elif campo == "Anno":
+                    values.append(str(int(val)))
+                elif "(%)" in nome:
+                    values.append(_fmt_num(val * 100) + "%")
+                else:
+                    values.append(_fmt_num(val))
+            rows.append(values)
+        return rows
+    return costruisci(df_perdita, ENERGIA_COLONNE), costruisci(df_flussi, CASSA_COLONNE)
 
 def genera_pdf():
+    from reportlab.lib.pagesizes import landscape, A3
+    from reportlab.platypus import PageBreak
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=13*mm, rightMargin=13*mm,
-                            topMargin=16*mm, bottomMargin=16*mm)
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(A3),
+                            leftMargin=14*mm, rightMargin=14*mm,
+                            topMargin=14*mm, bottomMargin=14*mm)
     styles = getSampleStyleSheet()
-    styles.add(ParagraphStyle(name="EurekaTitle", parent=styles["Heading1"], textColor=colors.black, fontSize=14, spaceAfter=6))
-    styles.add(ParagraphStyle(name="EurekaSmall", parent=styles["Normal"], fontSize=8, leading=11, textColor=colors.black))
+    styles.add(ParagraphStyle(name="EurekaTitle", parent=styles["Heading1"],
+                              textColor=colors.black, fontSize=15, spaceAfter=7))
+    styles.add(ParagraphStyle(name="EurekaSmall", parent=styles["Normal"],
+                              fontSize=9, leading=12, textColor=colors.black))
+    styles.add(ParagraphStyle(name="EurekaHeader", parent=styles["Normal"],
+                              fontSize=7, leading=8, textColor=colors.white,
+                              alignment=TA_CENTER))
     story = []
     if logo_file.exists():
         from reportlab.platypus import Image
         from PIL import Image as PILImage
         with PILImage.open(logo_file) as im:
             w, h = im.size
-        width = min(50*mm, w * 0.22*mm)
+        width = 50*mm
         story.append(Image(str(logo_file), width=width, height=width*h/w))
         story.append(Spacer(1, 3*mm))
     story.extend([
         Paragraph("<b>EUREKA SRL</b>", styles["EurekaTitle"]),
         Paragraph("SOCIETÀ BENEFIT · RISPARMIO ENERGETICO", styles["EurekaSmall"]),
         Paragraph("Via Kufstein, 1 · 38121 Trento (TN) · P.IVA 02326350226", styles["EurekaSmall"]),
-        Spacer(1, 8*mm),
+        Spacer(1, 7*mm),
         Paragraph("Allegato preliminare al business plan", styles["EurekaTitle"]),
     ])
     for k, v in _dati_allegato():
         story.append(Paragraph(f"<b>{html_escape(k)}:</b> {html_escape(str(v))}", styles["EurekaSmall"]))
-    story.append(Spacer(1, 7*mm))
-    def add_table(title, data, widths, font_size=7):
+    story.append(Spacer(1, 6*mm))
+
+    en, ca = _tabelle_allegato()
+    usable_width = landscape(A3)[0] - 28*mm
+    def add_table(title, data, widths):
         story.append(Paragraph(title, styles["EurekaTitle"]))
-        t = Table(data, colWidths=widths, repeatRows=1, hAlign="LEFT")
-        t.setStyle(TableStyle([
+        headers = [Paragraph(html_escape(str(h)), styles["EurekaHeader"]) for h in data[0]]
+        table = Table([headers] + data[1:], colWidths=[usable_width * w / sum(widths) for w in widths],
+                      repeatRows=1, hAlign="LEFT")
+        table.setStyle(TableStyle([
             ("BACKGROUND", (0,0),(-1,0),colors.black),
-            ("TEXTCOLOR", (0,0),(-1,0),colors.white),
-            ("ROWBACKGROUNDS", (0,1),(-1,-1),[colors.white,colors.HexColor("#f0f0f0")]),
+            ("ROWBACKGROUNDS", (0,1),(-1,-1),[colors.white, colors.HexColor("#f1f1f1")]),
             ("TEXTCOLOR", (0,1),(-1,-1),colors.black),
             ("GRID", (0,0),(-1,-1),0.25,colors.HexColor("#aaaaaa")),
-            ("FONTNAME", (0,0),(-1,0),"Helvetica-Bold"),
-            ("FONTSIZE", (0,0),(-1,-1),font_size),
+            ("FONTNAME", (0,1),(-1,-1),"Helvetica"),
+            ("FONTSIZE", (0,1),(-1,-1),8),
+            ("ALIGN", (1,1),(-1,-1),"RIGHT"),
             ("VALIGN", (0,0),(-1,-1),"MIDDLE"),
             ("TOPPADDING",(0,0),(-1,-1),5),
             ("BOTTOMPADDING",(0,0),(-1,-1),5),
         ]))
-        story.append(t)
-        story.append(Spacer(1, 8*mm))
-    en, ca = _tabelle_allegato()
-    add_table("2 · Analisi energetica", en, [18*mm, 52*mm, 52*mm, 62*mm])
-    add_table("3 · Analisi economico-finanziaria (€)", ca, [12*mm]+[24.5*mm]*7, 5.7)
+        story.append(table)
+    add_table("2 · Perdite di Energia — 25 annualità", en, [11,22,22,27,26,27,26,26,26,30])
+    story.append(PageBreak())
+    add_table("3 · Flussi di Cassa — 25 annualità (€)", ca, [12,29,27,23,28,20,25,26])
+    story.append(Spacer(1, 5*mm))
     story.append(Paragraph("Simulazione indicativa. Verificare ipotesi tecniche, contrattuali e fiscali con professionisti competenti.", styles["EurekaSmall"]))
     doc.build(story)
     return buffer.getvalue()
@@ -430,30 +469,33 @@ def genera_html_stampa():
     return f"""<!doctype html><html lang="it"><head><meta charset="utf-8">
     <title>Eureka · Allegato al business plan</title>
     <style>
-    body{{font-family:Arial,sans-serif;color:#000;margin:24px;}}
+    body{{font-family:Arial,sans-serif;color:#000;margin:22px;}}
     .logo{{max-width:190px;max-height:85px;object-fit:contain;}}
-    h1{{font-size:22px;margin:6px 0 0;}} h2{{font-size:17px;margin-top:30px;}}
+    h1{{font-size:22px;margin:6px 0 0;}} h2{{font-size:17px;margin-top:28px;}}
     .sub{{font-size:12px;margin:3px 0 8px;}} .dati p{{margin:3px 0;font-size:12px;}}
     table{{width:100%;border-collapse:collapse;font-size:10px;table-layout:fixed;}}
     th{{background:#000;color:#fff;}} th,td{{border:1px solid #aaa;padding:5px;overflow-wrap:anywhere;}}
-    tr:nth-child(even){{background:#f0f0f0;}}
+    tbody tr:nth-child(even){{background:#f0f0f0;}}
+    td:not(:first-child){{text-align:right;}}
     .print{{background:#111;color:white;padding:10px 18px;border:0;cursor:pointer;}}
-    @media print{{.print{{display:none}} @page{{size:A4 landscape;margin:12mm}} body{{margin:0}}}}
+    .page-break{{break-before:page;page-break-before:always;}}
+    thead{{display:table-header-group;}} tr{{break-inside:avoid;page-break-inside:avoid;}}
+    @media print{{.print{{display:none}} @page{{size:A3 landscape;margin:12mm}} body{{margin:0}}}}
     </style></head><body>
     <button class="print" onclick="window.print()">Stampa</button>
     {img}<h1>EUREKA SRL</h1><div class="sub">SOCIETÀ BENEFIT · RISPARMIO ENERGETICO</div>
     <div class="sub">Via Kufstein, 1 · 38121 Trento (TN) · P.IVA 02326350226</div>
     <h2>Allegato preliminare al business plan</h2><div class="dati">{dati}</div>
-    <h2>2 · Analisi energetica</h2>{tabella(en)}
-    <h2>3 · Analisi economico-finanziaria (€)</h2>{tabella(ca)}
+    <h2>2 · Perdite di Energia — 25 annualità</h2>{tabella(en)}
+    <section class="page-break"><h2>3 · Flussi di Cassa — 25 annualità (€)</h2>{tabella(ca)}</section>
     <p style="font-size:10px">Simulazione indicativa. Verificare ipotesi tecniche, contrattuali e fiscali.</p>
     </body></html>"""
 
 col_pdf, col_stampa = st.columns(2)
 with col_pdf:
-    st.download_button("Scarica PDF", genera_pdf(), file_name="Eureka_Allegato_Business_Plan.pdf",
+    st.download_button("Scarica PDF (tabelle complete)", genera_pdf(), file_name="Eureka_Allegato_Business_Plan.pdf",
                        mime="application/pdf", use_container_width=True)
 with col_stampa:
     st.download_button("Scarica versione per stampa", genera_html_stampa().encode("utf-8"),
                        file_name="Eureka_Stampa.html", mime="text/html", use_container_width=True)
-st.caption("Per stampare: apri il file HTML scaricato nel browser e premi il pulsante Stampa.")
+st.caption("Per stampare: apri il file HTML scaricato nel browser e premi Stampa. Impaginazione A3 orizzontale per leggibilità.")
