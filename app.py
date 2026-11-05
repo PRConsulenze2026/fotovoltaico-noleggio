@@ -53,7 +53,7 @@ DEFAULTS = {
     "prezzo_energia_venduta": 0.0, "rata_mensile": 0.0,
     "manutenzione_default": 0.0, "riscatto_default": 0.0,
     "forma_giuridica": "Società di Capitali (S.r.l., S.p.A.)",
-    "regione": "Puglia", "aliquota_totale": 30.05, "aliquota_modificata": False,
+    "regione": None, "aliquota_totale": 0.0, "aliquota_modificata": False,
 }
 for key, value in DEFAULTS.items():
     if key not in st.session_state:
@@ -79,6 +79,8 @@ def aliquota_corrente(tabella, voce):
     return st.session_state["tabella_" + tabella][voce]
 
 def calcola_aliquota_totale(forma, regione):
+    if not regione:
+        return 0.0
     base = aliquota_corrente("Forma giuridica", forma)
     if forma == "Regime Forfettario":
         return 0.0
@@ -163,8 +165,7 @@ def cancella_tutti_i_dati():
     for key, value in DEFAULTS.items():
         st.session_state[key] = value.upper() if key in CAMPI_MAIUSCOLI and isinstance(value, str) else value
     # La somma fiscale predefinita deve corrispondere alle aliquote attive.
-    st.session_state["aliquota_totale"] = calcola_aliquota_totale(
-        st.session_state["forma_giuridica"], st.session_state["regione"])
+    st.session_state["aliquota_totale"] = 0.0  # Regione vuota: nessuna aliquota cliente applicata
     st.session_state["aliquota_modificata"] = False
 
 def calcola_coefficiente_fiscale(forma, regione, aliquota_totale_percentuale):
@@ -326,7 +327,7 @@ with inserimento:
         with c2:
             st.text_input("Provincia", key="prov", max_chars=2, on_change=converti_in_maiuscolo, args=("prov",))
             st.date_input("Data offerta", key="data_offerta", format="DD/MM/YYYY")
-        st.selectbox("Regione", list(st.session_state["tabella_IRPEF regionale minima"].keys()), key="regione", on_change=sincronizza_aliquota)
+        st.selectbox("Regione", list(st.session_state["tabella_IRPEF regionale minima"].keys()), key="regione", index=None, placeholder="Seleziona una regione", on_change=sincronizza_aliquota)
         st.text_input("Protocollo offerta", key="protocollo", on_change=converti_in_maiuscolo, args=("protocollo",))
         st.number_input("Potenza impianto (kWp)", min_value=0.0, step=.1, format="%.3f", key="potenza_kwp")
 
@@ -352,16 +353,20 @@ with inserimento:
         forma_selezionata = st.session_state.forma_giuridica
         regione_irpef_selezionata = regione_selezionata
         col_a, col_b, col_c = st.columns(3)
-        col_a.metric("Aliquota Fiscale Stimata", f"{aliquota_corrente("Forma giuridica", forma_selezionata)*100:.2f}%")
-        col_b.metric("IRPEF Regionale · Aliquota Minima", f"{aliquota_corrente("IRPEF regionale minima", regione_irpef_selezionata)*100:.2f}%")
-        col_c.metric("IRAP Regionale · Aliquota Ordinaria", f"{aliquota_corrente("IRAP regionale ordinaria", regione_selezionata)*100:.2f}%")
+        col_a.metric("Aliquota Fiscale Stimata", f"{aliquota_corrente('Forma giuridica', forma_selezionata)*100:.2f}%" if regione_selezionata else "—")
+        col_b.metric("IRPEF Regionale · Aliquota Minima", f"{aliquota_corrente('IRPEF regionale minima', regione_irpef_selezionata)*100:.2f}%" if regione_irpef_selezionata else "—")
+        col_c.metric("IRAP Regionale · Aliquota Ordinaria", f"{aliquota_corrente('IRAP regionale ordinaria', regione_selezionata)*100:.2f}%" if regione_selezionata else "—")
         st.number_input("Aliquota Totale (%)", min_value=0.0, max_value=100.0,
                         step=0.01, format="%.2f", key="aliquota_totale",
                         on_change=aggiorna_aliquota_manuale,
                         help="Valore proposto: somma delle tre aliquote indicate; puoi modificarlo manualmente.")
         proposta = calcola_aliquota_totale(forma_selezionata, regione_selezionata)
-        st.caption(f"Valore automatico secondo il foglio Tabelle Aliquote: {proposta:.2f}%. "
-                   "La modifica manuale resta valida finché non cambi forma giuridica o regione.")
+        if regione_selezionata:
+            st.caption(f"Valore automatico secondo il foglio Tabelle Aliquote: {proposta:.2f}%. "
+                       "La modifica manuale resta valida finché non cambi forma giuridica o regione.")
+        else:
+            st.caption("Seleziona una regione nell'Anagrafica Cliente per visualizzare "
+                       "le aliquote fiscali e calcolare l'Aliquota Totale.")
         st.caption("Le aliquote del file Excel sono indicative: la somma non rappresenta necessariamente "
                    "l'imposta effettiva applicabile. Verificare con il consulente fiscale.")
 
@@ -553,7 +558,7 @@ with dettagli:
         st.write(f"Potenza: {numero(st.session_state.potenza_kwp, 3)} kWp")
         st.write(f"Durata noleggio: {durata_noleggio} anni")
         st.write(f"Forma giuridica: {st.session_state.forma_giuridica}")
-        st.write(f"Regione: {st.session_state.regione}")
+        st.write(f"Regione: {st.session_state.regione or '—'}")
         st.write(f"Coefficiente fiscale applicato: {coeff_fiscale:.2%}")
     st.info("I risultati sono simulazioni indicative basate sui dati inseriti. La sezione fiscale richiede verifica professionale e non costituisce un parere tributario.")
 
@@ -595,7 +600,7 @@ def _dati_allegato():
         ("Potenza impianto", f"{_fmt_num(st.session_state.potenza_kwp)} kWp"),
         ("Durata noleggio", f"{durata_noleggio} anni"),
         ("Referente commerciale", st.session_state.referente_commerciale or "—"),
-        ("Regione cliente", st.session_state.regione),
+        ("Regione cliente", st.session_state.regione or "—"),
         ("Aliquota Totale", f"{st.session_state.aliquota_totale:.2f}%"),
     ]
 
