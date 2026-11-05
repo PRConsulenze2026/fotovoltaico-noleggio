@@ -245,4 +245,15 @@ with col_5a:
     st.markdown("**Ricavo dalla Vendita**")
 with col_5b:
     st.markdown("*Energia Venduta*")
-    st.text_input("
+    st.text_input("D8", value=f"{energia_venduta:,.2f}", disabled=True, label_visibility="collapsed")
+with col_5c:
+    st.markdown("*Prezzo Energia Venduta in kWh*")
+    st.number_input("C10", step=0.00001, format="%.5f", key="prezzo_energia_venduta", label_visibility="collapsed")
+with col_5d:
+    st.markdown("*€.*")
+    st.text_input("D9", value=f"€ {ricavo_vendita:,.2f}", disabled=True, label_visibility="collapsed")
+
+st.markdown("---")
+
+# --- Blocco 6 ---
+col_6a, col_6b,
