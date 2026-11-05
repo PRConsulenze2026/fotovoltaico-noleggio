@@ -151,9 +151,9 @@ def numero(value, decimali=2):
     return f"{value:,.{decimali}f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 def reset_dati():
+    # Il callback viene eseguito prima dell'istanziazione dei widget.
     for key, value in DEFAULTS.items():
         st.session_state[key] = value
-    st.rerun()
 
 def calcola_coefficiente_fiscale(forma, regione, aliquota_totale_percentuale):
     if forma == "Regime Forfettario":
@@ -297,8 +297,7 @@ inserimento, dettagli, energia, noleggio, cassa, tabelle_aliquote = st.tabs(["�
 with inserimento:
     st.subheader("Inserimento Dati")
     st.caption("Compila i dati del cliente, della produzione, del noleggio e i parametri fiscali.")
-    if st.button("↺  Ripristina tutti i dati", use_container_width=True):
-        reset_dati()
+    st.button("↺  Ripristina tutti i dati", use_container_width=True, on_click=reset_dati)
     st.divider()
 
     with st.expander("1 · Anagrafica Cliente", expanded=True):
@@ -733,3 +732,4 @@ with col_pdf:
 with col_stampa:
     st.download_button("Scarica versione per stampa", genera_html_stampa().encode("utf-8"),
                        file_name="Eureka_Stampa.html", mime="text/html", use_container_width=True)
+st.caption("Per stampare: apri il file HTML scaricato nel browser e premi Stampa. Impaginazione A3 orizzontale per leggibilità.")
