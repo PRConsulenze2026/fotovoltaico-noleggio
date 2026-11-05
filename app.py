@@ -6,7 +6,7 @@ st.set_page_config(page_title="Simulatore Flusso di Cassa Fotovoltaico", layout=
 
 # CSS personalizzato per:
 # 1. Colore grigio scuro e testo bianco nei campi
-# 2. Permettere l'andata a capo (wrapping) delle intestazioni e adattamento altezza riga
+# 2. Altezza maggiorata e word wrapping automatico delle intestazioni (th) delle tabelle
 # 3. Rimozione delle barre di scorrimento interne alle tabelle
 st.markdown("""
 <style>
@@ -25,14 +25,17 @@ input:disabled, textarea:disabled {
     border: 1px solid #3f3f3f !important;
     opacity: 1 !important;
 }
+div[data-testid="stDataFrame"] th {
+    white-space: normal !important;
+    word-break: break-word !important;
+    height: 65px !important;
+    min-height: 65px !important;
+    vertical-align: middle !important;
+}
 div[data-testid="stDataFrame"] th div {
     white-space: normal !important;
     word-break: break-word !important;
-}
-div[data-testid="stDataFrame"] th {
-    height: auto !important;
-    padding-top: 8px !important;
-    padding-bottom: 8px !important;
+    overflow: visible !important;
 }
 div[data-testid="stDataFrame"] > div {
     max-height: none !important;
@@ -269,9 +272,9 @@ with col_6d:
 st.markdown("---")
 
 # ---------------------------------------------------------
-# 3. PERDITA DI ENERGIA (nei 25 ANNI - 10 COLONNE ESATTE DA EXCEL)
+# 3. PERDITE DI ENERGIA (nei 25 ANNI - 10 COLONNE ESATTE DA EXCEL)
 # ---------------------------------------------------------
-st.header("📉 Perdita di Energia (nei 25 Anni)")
+st.header("📉 Perdite di Energia (nei 25 Anni)")
 
 anni = list(range(1, 26))
 efficienza_residua = [1.0 if a == 1 else round(1.0 - 0.005 * (a - 1), 3) for a in anni]
@@ -356,30 +359,4 @@ df_flussi = pd.DataFrame({
     "Riscatto (€)": [riscatto_val if a == durata_noleggio else np.nan for a in anni]
 })
 
-df_flussi["Flusso Netto (€)"] = df_flussi[["Benefici Energetici (€)", "Benefici Fiscali (€)", "Noleggio (€)", "Manutenzione Annuale (€)", "Riscatto (€)"]].sum(axis=1)
-df_flussi["Cumulato (€)"] = df_flussi["Flusso Netto (€)"].cumsum()
-
-st.dataframe(df_flussi.style.format({
-    "Benefici Energetici (€)": "€ {:.2f}",
-    "Benefici Fiscali (€)": lambda x: f"€ {x:.2f}" if pd.notnull(x) else "",
-    "Noleggio (€)": lambda x: f"€ {x:.2f}" if pd.notnull(x) else "",
-    "Manutenzione Annuale (€)": "€ {:.2f}",
-    "Riscatto (€)": lambda x: f"€ {x:.2f}" if pd.notnull(x) else "",
-    "Flusso Netto (€)": "€ {:.2f}",
-    "Cumulato (€)": "€ {:.2f}"
-}), use_container_width=True, hide_index=True, height=950)
-
-st.markdown("---")
-
-# ---------------------------------------------------------
-# 5. PARAMETRI NOLEGGIO OPERATIVO (IN CODA)
-# ---------------------------------------------------------
-st.header("💳 Parametri Noleggio Operativo")
-col_n1, col_n2 = st.columns(2)
-with col_n1:
-    st.number_input("A2: Rata Mensile Noleggio (€)", step=10.0, key="rata_mensile")
-with col_n2:
-    rb_str = f"€ {rata_bimestrale:.2f}"
-    na_str = f"€ {noleggio_annuale:.2f}"
-    st.markdown(f"**A4 Rata Bimestrale:** {rb_str}")
-    st.markdown(f"**Noleggio Annuale (D2):** {na_str}")
+df_flussi["Flusso Netto (€)"] = df_flussi[["Benefici Energetici (€)", "Benefici Fiscali (€)", "Noleggio (€)", "Manutenzione Annuale (€)", "Riscatto (€)"]].sum(axis=
