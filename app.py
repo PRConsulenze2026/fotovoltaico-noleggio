@@ -11,7 +11,7 @@ st.set_page_config(
     page_title="Eureka | Simulatore fotovoltaico",
     page_icon="☀️",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 st.markdown("""
@@ -20,7 +20,8 @@ st.markdown("""
 [data-testid="stAppViewContainer"], [data-testid="stMain"] { background:#101820; color:#f6f7f9; }
 [data-testid="stHeader"] { background:rgba(16,24,32,.96); }
 .block-container { padding-top:1.7rem; padding-bottom:2.5rem; max-width:1500px; }
-[data-testid="stSidebar"] { background:#18232e; }
+[data-testid="stSidebar"] { display:none; }
+[data-testid="collapsedControl"] { display:none; }
 [data-testid="stSidebar"] * { color:#f6f7f9; }
 [data-testid="stSidebar"] input, [data-testid="stSidebar"] [data-baseweb="select"] { background:#253341; color:#fff; }
 [data-testid="stSidebar"] input { color:#fff !important; }
@@ -102,44 +103,7 @@ def calcola_coefficiente_fiscale(forma, regione, add_com):
 # =========================================================
 # SIDEBAR: INPUT GUIDATI
 # =========================================================
-if st.sidebar.button("↺  Ripristina tutti i dati", use_container_width=True):
-    reset_dati()
-st.sidebar.divider()
-
-with st.sidebar.expander("1 · Cliente e offerta", expanded=True):
-    st.text_input("Cliente / ragione sociale", key="azienda", placeholder="Nome azienda")
-    st.text_input("Indirizzo", key="indirizzo", placeholder="Via e numero civico")
-    c1, c2 = st.columns(2)
-    with c1:
-        st.text_input("Città", key="citta")
-        st.text_input("CAP", key="cap")
-    with c2:
-        st.text_input("Provincia", key="prov", max_chars=2)
-        st.date_input("Data offerta", key="data_offerta")
-    st.text_input("Protocollo offerta", key="protocollo")
-    st.number_input("Potenza impianto (kWp)", min_value=0.0, step=.1, format="%.3f", key="potenza_kwp")
-
-with st.sidebar.expander("2 · Produzione ed energia", expanded=True):
-    st.number_input("Produzione totale stimata (kWh)", min_value=0.0, step=500.0, key="prod_impianto")
-    st.number_input("Durata noleggio (anni)", min_value=1, max_value=25, step=1, key="durata_noleggio")
-    st.number_input("Quota autoconsumo (%)", min_value=0.0, max_value=100.0, step=5.0, key="autoconsumo_pct")
-    st.number_input("Costo energia acquistata (€/kWh)", min_value=0.0, step=.0001, format="%.5f", key="costo_energia_pagata")
-    st.number_input("Quota energia ceduta (%)", min_value=0.0, max_value=100.0, step=1.0, key="cessione_pct")
-    st.number_input("Prezzo energia venduta (€/kWh)", min_value=0.0, step=.0001, format="%.5f", key="prezzo_energia_venduta")
-    if st.session_state.autoconsumo_pct + st.session_state.cessione_pct > 100:
-        st.warning("Autoconsumo e cessione superano complessivamente il 100% della produzione.")
-
-with st.sidebar.expander("3 · Noleggio e costi", expanded=True):
-    st.number_input("Rata mensile (€)", min_value=0.0, step=10.0, key="rata_mensile")
-    st.number_input("Manutenzione annuale (€)", min_value=0.0, step=50.0, key="manutenzione_default")
-    st.number_input("Riscatto finale (€)", min_value=0.0, step=50.0, key="riscatto_default")
-
-with st.sidebar.expander("4 · Parametri fiscali", expanded=False):
-    forme = ["Società di Capitali (S.r.l., S.p.A.)", "Impresa individuale / Società di persone", "Regime Forfettario"]
-    st.selectbox("Forma giuridica", forme, key="forma_giuridica")
-    st.selectbox("Regione", list(regioni_db.keys()), key="regione")
-    st.number_input("Addizionale comunale (%)", min_value=0.0, max_value=3.0, step=.1, format="%.2f", key="add_comunale")
-    st.caption("Aliquote e beneficio fiscale sono parametri semplificati del modello: verificarli con il consulente fiscale.")
+# I campi di inserimento sono ora nella scheda Inserimento Dati.
 
 # =========================================================
 # CALCOLI (logica del modello originale mantenuta)
@@ -264,14 +228,56 @@ k4.metric("Flusso netto · anno 1", euro(df_flussi.loc[0, "Flusso netto (€)"])
 if st.session_state.azienda:
     st.caption(f"Offerta del {st.session_state.data_offerta.strftime('%d/%m/%Y')} · {st.session_state.citta} {st.session_state.prov} · Protocollo: {st.session_state.protocollo or 'non assegnato'}")
 else:
-    st.info("Compila i dati dell'offerta nel pannello laterale per personalizzare la simulazione.")
+    st.info("Compila i dati dell'offerta nella scheda Inserimento Dati per personalizzare la simulazione.")
 
 # Schede di navigazione
-dettagli, energia, cassa, panoramica = st.tabs(["📄 Dati offerta", "⚡ Analisi energetica", "📊 Flussi di cassa", "📌 Panoramica"])
+inserimento, dettagli, energia, cassa, panoramica = st.tabs(["📝 Inserimento Dati", "📄 Dati offerta", "⚡ Analisi energetica", "📊 Flussi di cassa", "📌 Panoramica"])
+
+with inserimento:
+    st.subheader("Inserimento Dati")
+    st.caption("Compila i dati del cliente, della produzione, del noleggio e i parametri fiscali.")
+    if st.button("↺  Ripristina tutti i dati", use_container_width=True):
+        reset_dati()
+    st.divider()
+
+    with st.expander("1 · Cliente e offerta", expanded=True):
+        st.text_input("Cliente / ragione sociale", key="azienda", placeholder="Nome azienda")
+        st.text_input("Indirizzo", key="indirizzo", placeholder="Via e numero civico")
+        c1, c2 = st.columns(2)
+        with c1:
+            st.text_input("Città", key="citta")
+            st.text_input("CAP", key="cap")
+        with c2:
+            st.text_input("Provincia", key="prov", max_chars=2)
+            st.date_input("Data offerta", key="data_offerta")
+        st.text_input("Protocollo offerta", key="protocollo")
+        st.number_input("Potenza impianto (kWp)", min_value=0.0, step=.1, format="%.3f", key="potenza_kwp")
+
+    with st.expander("2 · Produzione ed energia", expanded=True):
+        st.number_input("Produzione totale stimata (kWh)", min_value=0.0, step=500.0, key="prod_impianto")
+        st.number_input("Durata noleggio (anni)", min_value=1, max_value=25, step=1, key="durata_noleggio")
+        st.number_input("Quota autoconsumo (%)", min_value=0.0, max_value=100.0, step=5.0, key="autoconsumo_pct")
+        st.number_input("Costo energia acquistata (€/kWh)", min_value=0.0, step=.0001, format="%.5f", key="costo_energia_pagata")
+        st.number_input("Quota energia ceduta (%)", min_value=0.0, max_value=100.0, step=1.0, key="cessione_pct")
+        st.number_input("Prezzo energia venduta (€/kWh)", min_value=0.0, step=.0001, format="%.5f", key="prezzo_energia_venduta")
+        if st.session_state.autoconsumo_pct + st.session_state.cessione_pct > 100:
+            st.warning("Autoconsumo e cessione superano complessivamente il 100% della produzione.")
+
+    with st.expander("3 · Noleggio e costi", expanded=True):
+        st.number_input("Rata mensile (€)", min_value=0.0, step=10.0, key="rata_mensile")
+        st.number_input("Manutenzione annuale (€)", min_value=0.0, step=50.0, key="manutenzione_default")
+        st.number_input("Riscatto finale (€)", min_value=0.0, step=50.0, key="riscatto_default")
+
+    with st.expander("4 · Parametri fiscali", expanded=False):
+        forme = ["Società di Capitali (S.r.l., S.p.A.)", "Impresa individuale / Società di persone", "Regime Forfettario"]
+        st.selectbox("Forma giuridica", forme, key="forma_giuridica")
+        st.selectbox("Regione", list(regioni_db.keys()), key="regione")
+        st.number_input("Addizionale comunale (%)", min_value=0.0, max_value=3.0, step=.1, format="%.2f", key="add_comunale")
+        st.caption("Aliquote e beneficio fiscale sono parametri semplificati del modello: verificarli con il consulente fiscale.")
 
 with panoramica:
     st.subheader("Sintesi economica")
-    st.markdown("<p class='section-note'>Valori calcolati sulla base dei parametri inseriti nel pannello laterale.</p>", unsafe_allow_html=True)
+    st.markdown("<p class='section-note'>Valori calcolati sulla base dei parametri della scheda Inserimento Dati.</p>", unsafe_allow_html=True)
     a, b, c = st.columns(3)
     a.metric("Risparmio da autoconsumo", euro(risparmio_autoconsumo))
     b.metric("Ricavo da energia ceduta", euro(ricavo_vendita))
