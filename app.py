@@ -6,7 +6,8 @@ st.set_page_config(page_title="Simulatore Flusso di Cassa Fotovoltaico", layout=
 
 # CSS personalizzato per:
 # 1. Colore grigio scuro e testo bianco nei campi
-# 2. Ottimizzazione delle tabelle per mostrare tutte le 25 righe senza barre di scorrimento interne
+# 2. Permettere l'andata a capo (wrapping) delle intestazioni e adattamento altezza riga
+# 3. Rimozione delle barre di scorrimento interne alle tabelle
 st.markdown("""
 <style>
 div.stNumberInput input, div.stTextInput input, div.stDateInput input {
@@ -23,6 +24,15 @@ input:disabled, textarea:disabled {
     color: #ffffff !important;
     border: 1px solid #3f3f3f !important;
     opacity: 1 !important;
+}
+div[data-testid="stDataFrame"] th div {
+    white-space: normal !important;
+    word-break: break-word !important;
+}
+div[data-testid="stDataFrame"] th {
+    height: auto !important;
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
 }
 div[data-testid="stDataFrame"] > div {
     max-height: none !important;
@@ -259,9 +269,9 @@ with col_6d:
 st.markdown("---")
 
 # ---------------------------------------------------------
-# 3. PERDITA DI ENERGIA (25 ANNI - 10 COLONNE ESATTE DA EXCEL)
+# 3. PERDITA DI ENERGIA (nei 25 ANNI - 10 COLONNE ESATTE DA EXCEL)
 # ---------------------------------------------------------
-st.header("📉 Perdita di Energia (25 Anni)")
+st.header("📉 Perdita di Energia (nei 25 Anni)")
 
 anni = list(range(1, 26))
 efficienza_residua = [1.0 if a == 1 else round(1.0 - 0.005 * (a - 1), 3) for a in anni]
@@ -369,5 +379,4 @@ col_n1, col_n2 = st.columns(2)
 with col_n1:
     st.number_input("A2: Rata Mensile Noleggio (€)", step=10.0, key="rata_mensile")
 with col_n2:
-    st.write(f"**A4 Rata Bimestrale:** € {rata_bimestrale:.2f}")
-    st.write(f"**Noleggio Annuale (D2):** € {noleggio_annuale:.2f}")
+    st.write(f"**A4 Rata Bimestrale
