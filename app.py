@@ -150,10 +150,22 @@ def euro(value):
 def numero(value, decimali=2):
     return f"{value:,.{decimali}f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-def reset_dati():
-    # Il callback viene eseguito prima dell'istanziazione dei widget.
+CAMPI_MAIUSCOLI = {'indirizzo', 'referente_commerciale', 'cap', 'prov', 'protocollo', 'azienda', 'citta'}
+
+def converti_in_maiuscolo(chiave):
+    valore = st.session_state.get(chiave)
+    if isinstance(valore, str):
+        st.session_state[chiave] = valore.upper()
+
+def cancella_tutti_i_dati():
+    # Callback eseguito prima della creazione dei widget: svuota i dati inseriti
+    # e conserva i valori predefiniti necessari al funzionamento del simulatore.
     for key, value in DEFAULTS.items():
-        st.session_state[key] = value
+        st.session_state[key] = value.upper() if key in CAMPI_MAIUSCOLI and isinstance(value, str) else value
+    # La somma fiscale predefinita deve corrispondere alle aliquote attive.
+    st.session_state["aliquota_totale"] = calcola_aliquota_totale(
+        st.session_state["forma_giuridica"], st.session_state["regione"])
+    st.session_state["aliquota_modificata"] = False
 
 def calcola_coefficiente_fiscale(forma, regione, aliquota_totale_percentuale):
     if forma == "Regime Forfettario":
@@ -247,6 +259,10 @@ div[data-testid="stVerticalBlockBorderWrapper"]:has(.eureka-hero-marker) {
 .eureka-hero-subtitle {font-size:.95rem; color:#d9e0e8; margin:0;}
 </style>
 """, unsafe_allow_html=True)
+for campo_maiuscolo in CAMPI_MAIUSCOLI:
+    if campo_maiuscolo in st.session_state:
+        converti_in_maiuscolo(campo_maiuscolo)
+
 with st.container(border=False):
     hero_sx, hero_dx = st.columns([2.3, 1], gap="large", vertical_alignment="center")
     with hero_sx:
@@ -277,7 +293,7 @@ with st.container(border=False):
                 'SOCIETÀ BENEFIT</div>',
                 unsafe_allow_html=True,
             )
-        st.text_input("Referente Commerciale", key="referente_commerciale", placeholder="Inserisci il referente")
+        st.text_input("Referente Commerciale", key="referente_commerciale", placeholder="Inserisci il referente", on_change=converti_in_maiuscolo, args=("referente_commerciale",))
 
 # KPI sintetici
 k1, k2, k3, k4 = st.columns(4)
@@ -297,21 +313,21 @@ inserimento, dettagli, energia, noleggio, cassa, tabelle_aliquote = st.tabs(["�
 with inserimento:
     st.subheader("Inserimento Dati")
     st.caption("Compila i dati del cliente, della produzione, del noleggio e i parametri fiscali.")
-    st.button("↺  Ripristina tutti i dati", use_container_width=True, on_click=reset_dati)
+    st.button("🗑️  Cancella tutti i Dati", use_container_width=True, on_click=cancella_tutti_i_dati)
     st.divider()
 
     with st.expander("1 · Anagrafica Cliente", expanded=True):
-        st.text_input("Cliente / ragione sociale", key="azienda", placeholder="Nome azienda")
-        st.text_input("Indirizzo", key="indirizzo", placeholder="Via e numero civico")
+        st.text_input("Cliente / ragione sociale", key="azienda", placeholder="Nome azienda", on_change=converti_in_maiuscolo, args=("azienda",))
+        st.text_input("Indirizzo", key="indirizzo", placeholder="Via e numero civico", on_change=converti_in_maiuscolo, args=("indirizzo",))
         c1, c2 = st.columns(2)
         with c1:
-            st.text_input("Città", key="citta")
-            st.text_input("CAP", key="cap")
+            st.text_input("Città", key="citta", on_change=converti_in_maiuscolo, args=("citta",))
+            st.text_input("CAP", key="cap", on_change=converti_in_maiuscolo, args=("cap",))
         with c2:
-            st.text_input("Provincia", key="prov", max_chars=2)
+            st.text_input("Provincia", key="prov", max_chars=2, on_change=converti_in_maiuscolo, args=("prov",))
             st.date_input("Data offerta", key="data_offerta", format="DD/MM/YYYY")
         st.selectbox("Regione", list(st.session_state["tabella_IRPEF regionale minima"].keys()), key="regione", on_change=sincronizza_aliquota)
-        st.text_input("Protocollo offerta", key="protocollo")
+        st.text_input("Protocollo offerta", key="protocollo", on_change=converti_in_maiuscolo, args=("protocollo",))
         st.number_input("Potenza impianto (kWp)", min_value=0.0, step=.1, format="%.3f", key="potenza_kwp")
 
     with st.expander("2 · Produzione ed energia", expanded=True):
