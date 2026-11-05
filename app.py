@@ -752,18 +752,34 @@ def genera_pdf():
                               fontSize=7, leading=8, textColor=colors.white,
                               alignment=TA_CENTER))
     story = []
+    # Intestazione compatta: logo a sinistra, nome e sottotitolo a destra.
+    intestazione_testi = [
+        Paragraph("<b>EUREKA SRL</b>", styles["EurekaTitle"]),
+        Paragraph("SOCIETÀ BENEFIT · RISPARMIO ENERGETICO", styles["EurekaSmall"]),
+        Paragraph("Via Kufstein, 1 · 38121 Trento (TN) · P.IVA 02326350226", styles["EurekaSmall"]),
+    ]
     if logo_file is not None:
         from reportlab.platypus import Image
         from PIL import Image as PILImage
         with PILImage.open(logo_file) as im:
             w, h = im.size
-        width = 50*mm
-        story.append(Image(str(logo_file), width=width, height=width*h/w))
-        story.append(Spacer(1, 3*mm))
+        # Mantiene le proporzioni, entro 22 x 22 mm.
+        fattore = min((22*mm)/w, (22*mm)/h)
+        logo = Image(str(logo_file), width=w*fattore, height=h*fattore)
+        intestazione = Table([[logo, intestazione_testi]],
+                             colWidths=[28*mm, landscape(A3)[0]-28*mm-28*mm],
+                             hAlign="LEFT")
+        intestazione.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (0, 0), 4*mm),
+            ("TOPPADDING", (0, 0), (-1, -1), 0),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        ]))
+        story.append(intestazione)
+    else:
+        story.extend(intestazione_testi)
     story.extend([
-        Paragraph("<b>EUREKA SRL</b>", styles["EurekaTitle"]),
-        Paragraph("SOCIETÀ BENEFIT · RISPARMIO ENERGETICO", styles["EurekaSmall"]),
-        Paragraph("Via Kufstein, 1 · 38121 Trento (TN) · P.IVA 02326350226", styles["EurekaSmall"]),
         Spacer(1, 7*mm),
         Paragraph("Allegato preliminare al business plan", styles["EurekaTitle"]),
     ])
