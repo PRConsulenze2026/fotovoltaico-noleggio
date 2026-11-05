@@ -359,4 +359,38 @@ df_flussi = pd.DataFrame({
     "Riscatto (€)": [riscatto_val if a == durata_noleggio else np.nan for a in anni]
 })
 
-df_flussi["Flusso Netto (€)"] = df_flussi[["Benefici Energetici (€)", "Benefici Fiscali (€)", "Noleggio (€)", "Manutenzione Annuale (€)", "Riscatto (€)"]].sum(axis=
+cols_to_sum = [
+    "Benefici Energetici (€)",
+    "Benefici Fiscali (€)",
+    "Noleggio (€)",
+    "Manutenzione Annuale (€)",
+    "Riscatto (€)"
+]
+
+df_flussi["Flusso Netto (€)"] = df_flussi[cols_to_sum].sum(axis=1)
+df_flussi["Cumulato (€)"] = df_flussi["Flusso Netto (€)"].cumsum()
+
+st.dataframe(df_flussi.style.format({
+    "Benefici Energetici (€)": "€ {:.2f}",
+    "Benefici Fiscali (€)": lambda x: f"€ {x:.2f}" if pd.notnull(x) else "",
+    "Noleggio (€)": lambda x: f"€ {x:.2f}" if pd.notnull(x) else "",
+    "Manutenzione Annuale (€)": "€ {:.2f}",
+    "Riscatto (€)": lambda x: f"€ {x:.2f}" if pd.notnull(x) else "",
+    "Flusso Netto (€)": "€ {:.2f}",
+    "Cumulato (€)": "€ {:.2f}"
+}), use_container_width=True, hide_index=True, height=950)
+
+st.markdown("---")
+
+# ---------------------------------------------------------
+# 5. PARAMETRI NOLEGGIO OPERATIVO (IN CODA)
+# ---------------------------------------------------------
+st.header("💳 Parametri Noleggio Operativo")
+col_n1, col_n2 = st.columns(2)
+with col_n1:
+    st.number_input("A2: Rata Mensile Noleggio (€)", step=10.0, key="rata_mensile")
+with col_n2:
+    rb_str = f"€ {rata_bimestrale:.2f}"
+    na_str = f"€ {noleggio_annuale:.2f}"
+    st.markdown(f"**A4 Rata Bimestrale:** {rb_str}")
+    st.markdown(f"**Noleggio Annuale (D2):** {na_str}")
