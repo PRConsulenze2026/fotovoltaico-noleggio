@@ -379,4 +379,7 @@ col_n1, col_n2 = st.columns(2)
 with col_n1:
     st.number_input("A2: Rata Mensile Noleggio (€)", step=10.0, key="rata_mensile")
 with col_n2:
-    st.write(f"**A4 Rata Bimestrale
+    rb_str = f"€ {rata_bimestrale:.2f}"
+    na_str = f"€ {noleggio_annuale:.2f}"
+    st.markdown(f"**A4 Rata Bimestrale:** {rb_str}")
+    st.markdown(f"**Noleggio Annuale (D2):** {na_str}")
