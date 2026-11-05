@@ -6,7 +6,7 @@ st.set_page_config(page_title="Simulatore Flusso di Cassa Fotovoltaico", layout=
 
 # CSS personalizzato per:
 # 1. Colore grigio scuro e testo bianco nei campi
-# 2. Rimozione totale delle barre di scorrimento e degli spazi vuoti sotto le tabelle
+# 2. Ottimizzazione delle tabelle per mostrare tutte le 25 righe senza barre di scorrimento interne
 st.markdown("""
 <style>
 div.stNumberInput input, div.stTextInput input, div.stDateInput input {
@@ -24,13 +24,8 @@ input:disabled, textarea:disabled {
     border: 1px solid #3f3f3f !important;
     opacity: 1 !important;
 }
-div[data-testid="stDataFrame"] {
-    height: auto !important;
-}
 div[data-testid="stDataFrame"] > div {
-    height: auto !important;
     max-height: none !important;
-    overflow: visible !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -272,7 +267,6 @@ anni = list(range(1, 26))
 efficienza_residua = [1.0 if a == 1 else round(1.0 - 0.005 * (a - 1), 3) for a in anni]
 perdita_cumulata = [0.0 if a == 1 else round(0.005 * (a - 1), 3) for a in anni]
 
-# Calcolo perdite in kWh ed energia netta come nel foglio Excel
 perdita_auto_kwh = [0.0 if a == 1 else - (energia_autoconsumata * perdita_cumulata[i]) for i, a in enumerate(anni)]
 auto_kwh_netto = [energia_autoconsumata + perdita_auto_kwh[i] for i in range(25)]
 
@@ -306,7 +300,7 @@ st.dataframe(df_perdita.style.format({
     "Risparmio in Autoconsumo (€)": "€ {:.2f}",
     "Ricavo dalla Vendita (€)": "€ {:.2f}",
     "Totale Benefici Energetici per Anno (€)": "€ {:.2f}"
-}), use_container_width=True, hide_index=True)
+}), use_container_width=True, hide_index=True, height=950)
 
 st.markdown("---")
 
@@ -363,12 +357,17 @@ st.dataframe(df_flussi.style.format({
     "Riscatto (€)": lambda x: f"€ {x:.2f}" if pd.notnull(x) else "",
     "Flusso Netto (€)": "€ {:.2f}",
     "Cumulato (€)": "€ {:.2f}"
-}), use_container_width=True, hide_index=True)
+}), use_container_width=True, hide_index=True, height=950)
 
-# Totali Generali
-st.markdown("### 📈 Totali Generali")
-tot_energetici = sum(totale_benefici_perdita)
-tot_fiscali = beneficio_fiscale_annuale * durata_noleggio
-tot_noleggio = -noleggio_annuale * durata_noleggio
-tot_manutenzione = manut_val * 25
-tot_riscat
+st.markdown("---")
+
+# ---------------------------------------------------------
+# 5. PARAMETRI NOLEGGIO OPERATIVO (IN CODA)
+# ---------------------------------------------------------
+st.header("💳 Parametri Noleggio Operativo")
+col_n1, col_n2 = st.columns(2)
+with col_n1:
+    st.number_input("A2: Rata Mensile Noleggio (€)", step=10.0, key="rata_mensile")
+with col_n2:
+    st.write(f"**A4 Rata Bimestrale:** € {rata_bimestrale:.2f}")
+    st.write(f"**Noleggio Annuale (D2):** € {noleggio_annuale:.2f}")
