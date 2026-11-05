@@ -3,6 +3,8 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import time
+import json
+from datetime import date, datetime
 from html import escape as html_escape
 
 # =========================================================
@@ -120,7 +122,7 @@ def riga_aliquota(tabella, voce, indice):
     if valore not in st.session_state:
         st.session_state[valore] = round(aliquota_corrente(tabella, voce) * 100, 4)
     nome_col, aliquota_col, protezione_col = st.columns([5, 2, 2], vertical_alignment="center")
-    nome_col.write(voce)
+    nome_col.write(voce.upper() if tabella != "Forma giuridica" else voce)
     aliquota_col.number_input(
         f"Aliquota (%) · {voce}", min_value=0.0, max_value=100.0,
         step=0.01, format="%.4f", key=valore,
@@ -172,6 +174,93 @@ def calcola_coefficiente_fiscale(forma, regione, aliquota_totale_percentuale):
     if forma == "Regime Forfettario":
         return 0.0
     return aliquota_totale_percentuale / 100.0
+
+
+# =========================================================
+# SALVATAGGIO E RIAPERTURA SIMULAZIONI (JSON LOCALE)
+# =========================================================
+def esporta_simulazione():
+    dati = {}
+    for chiave, predefinito in DEFAULTS.items():
+        valore = st.session_state.get(chiave, predefinito)
+        dati[chiave] = valore.isoformat() if isinstance(valore, (date, datetime)) else valore
+    tabelle = {nome: dict(st.session_state["tabella_" + nome]) for nome in TABELLE_ALIQUOTE}
+    return json.dumps({"formato": "eureka-simulazione", "versione": 1,
+                       "dati": dati, "tabelle_aliquote": tabelle},
+                      ensure_ascii=False, indent=2).encode("utf-8")
+
+def carica_simulazione():
+    file = st.session_state.get("file_simulazione")
+    if file is None:
+        st.session_state["esito_caricamento"] = ("error", "Seleziona prima un file JSON.")
+        return
+    try:
+        payload = json.loads(file.getvalue().decode("utf-8"))
+        if not isinstance(payload, dict) or payload.get("formato") != "eureka-simulazione":
+            raise ValueError("Il file non è una simulazione Eureka.")
+        dati = payload.get("dati")
+        if not isinstance(dati, dict):
+            raise ValueError("Dati mancanti.")
+        nuovi = {}
+        for chiave, default in DEFAULTS.items():
+            v = dati.get(chiave, default)
+            if chiave == "data_offerta":
+                v = date.fromisoformat(v) if isinstance(v, str) else default
+            elif chiave == "regione":
+                if v is not None and v not in ALIQUOTE_IRPEF_REGIONALI:
+                    raise ValueError("Regione non valida.")
+            elif chiave == "forma_giuridica":
+                if v not in ALIQUOTE_FORMA:
+                    raise ValueError("Forma giuridica non valida.")
+            elif isinstance(default, str):
+                if not isinstance(v, str):
+                    raise ValueError(f"Testo non valido: {chiave}")
+                if chiave in CAMPI_MAIUSCOLI:
+                    v = v.upper()
+            elif isinstance(default, bool):
+                if not isinstance(v, bool):
+                    raise ValueError(f"Flag non valido: {chiave}")
+            elif isinstance(default, int):
+                v = int(v)
+            elif isinstance(default, float):
+                v = float(v)
+                if not 0 <= v <= 1e12:
+                    raise ValueError(f"Numero non valido: {chiave}")
+            nuovi[chiave] = v
+        if not 1 <= nuovi["durata_noleggio"] <= 25:
+            raise ValueError("Durata del noleggio non valida.")
+        for chiave in ("autoconsumo_pct", "cessione_pct", "aliquota_totale"):
+            if not 0 <= nuovi[chiave] <= 100:
+                raise ValueError(f"Percentuale non valida: {chiave}")
+        originali_importati = payload.get("tabelle_aliquote", {})
+        if not isinstance(originali_importati, dict):
+            raise ValueError("Tabelle non valide.")
+        nuove_tabelle = {}
+        for nome, originali in TABELLE_ALIQUOTE.items():
+            valori = originali_importati.get(nome, originali)
+            if not isinstance(valori, dict) or set(valori) != set(originali):
+                raise ValueError(f"Tabella non valida: {nome}")
+            valori = {k: float(v) for k, v in valori.items()}
+            if any(not 0 <= v <= 1 for v in valori.values()):
+                raise ValueError(f"Aliquota non valida: {nome}")
+            nuove_tabelle[nome] = valori
+    except (ValueError, TypeError, UnicodeDecodeError, OverflowError) as exc:
+        st.session_state["esito_caricamento"] = ("error", f"Caricamento non riuscito: {exc}")
+        return
+    # Callback: prima dell'istanziazione dei widget.
+    for chiave, valore in nuovi.items():
+        st.session_state[chiave] = valore
+    for nome, valori in nuove_tabelle.items():
+        st.session_state["tabella_" + nome] = valori
+        prefisso = {"Forma giuridica": "forma",
+                    "IRPEF regionale minima": "irpef",
+                    "IRAP regionale ordinaria": "irap"}[nome]
+        for indice, valore in enumerate(valori.values()):
+            chiave = f"{prefisso}_{indice}"
+            st.session_state["valore_" + chiave] = round(valore * 100, 4)
+            st.session_state["bloccata_" + chiave] = True
+            st.session_state.pop("scadenza_" + chiave, None)
+    st.session_state["esito_caricamento"] = ("success", "Simulazione caricata correttamente.")
 
 # =========================================================
 # SIDEBAR: INPUT GUIDATI
@@ -315,6 +404,22 @@ with inserimento:
     st.subheader("Inserimento Dati")
     st.caption("Compila i dati del cliente, della produzione, del noleggio e i parametri fiscali.")
     st.button("🗑️  Cancella tutti i Dati", use_container_width=True, on_click=cancella_tutti_i_dati)
+    st.markdown("#### Salva o riapri una simulazione")
+    st.caption("Salva i dati sul computer in formato JSON e riaprili in seguito, "
+               "comprese le aliquote eventualmente modificate.")
+    col_salva, col_apri = st.columns(2)
+    with col_salva:
+        st.download_button("💾 Salva simulazione", data=esporta_simulazione(),
+                           file_name="Eureka_Simulazione.json",
+                           mime="application/json", use_container_width=True)
+    with col_apri:
+        st.file_uploader("Seleziona il file della simulazione (.json)",
+                         type=["json"], key="file_simulazione")
+        st.button("📂 Apri simulazione", on_click=carica_simulazione,
+                  use_container_width=True)
+    if "esito_caricamento" in st.session_state:
+        livello, messaggio = st.session_state.pop("esito_caricamento")
+        (st.success if livello == "success" else st.error)(messaggio)
     st.divider()
 
     with st.expander("1 · Anagrafica Cliente", expanded=True):
@@ -327,7 +432,8 @@ with inserimento:
         with c2:
             st.text_input("Provincia", key="prov", max_chars=2, on_change=converti_in_maiuscolo, args=("prov",))
             st.date_input("Data offerta", key="data_offerta", format="DD/MM/YYYY")
-        st.selectbox("Regione", list(st.session_state["tabella_IRPEF regionale minima"].keys()), key="regione", index=None, placeholder="Seleziona una regione", on_change=sincronizza_aliquota)
+        st.selectbox("Regione", list(st.session_state["tabella_IRPEF regionale minima"].keys()), key="regione", index=None, placeholder="SELEZIONA UNA REGIONE",
+                     format_func=lambda nome: nome.upper(), on_change=sincronizza_aliquota)
         st.text_input("Protocollo offerta", key="protocollo", on_change=converti_in_maiuscolo, args=("protocollo",))
         st.number_input("Potenza impianto (kWp)", min_value=0.0, step=.1, format="%.3f", key="potenza_kwp")
 
@@ -588,7 +694,8 @@ def _fmt_num(v):
 def _safe(v):
     return html_escape(str(v or "—"))
 
-logo_file = Path(__file__).with_name("logo_eureka.png")
+logo_file = next((p for nome in ("logo_eureka.png", "Logo 100x100.png", "Logo.png")
+                  if (p := Path(__file__).with_name(nome)).is_file()), None)
 
 def _dati_allegato():
     return [
@@ -600,7 +707,7 @@ def _dati_allegato():
         ("Potenza impianto", f"{_fmt_num(st.session_state.potenza_kwp)} kWp"),
         ("Durata noleggio", f"{durata_noleggio} anni"),
         ("Referente commerciale", st.session_state.referente_commerciale or "—"),
-        ("Regione cliente", st.session_state.regione or "—"),
+        ("Regione cliente", (st.session_state.regione or "—").upper()),
         ("Aliquota Totale", f"{st.session_state.aliquota_totale:.2f}%"),
     ]
 
@@ -663,7 +770,7 @@ def genera_pdf():
                               fontSize=7, leading=8, textColor=colors.white,
                               alignment=TA_CENTER))
     story = []
-    if logo_file.exists():
+    if logo_file is not None:
         from reportlab.platypus import Image
         from PIL import Image as PILImage
         with PILImage.open(logo_file) as im:
@@ -702,12 +809,17 @@ def genera_pdf():
             ("BOTTOMPADDING",(0,0),(-1,-1),5),
         ]))
         story.append(table)
-    add_table("2 · Perdite di Energia — 25 annualità", en, [11,22,22,27,26,27,26,26,26,30])
+    add_table("Perdite di Energia — 25 annualità", en, [11,22,22,27,26,27,26,26,26,30])
     story.append(PageBreak())
-    add_table("3 · Flussi di Cassa — 25 annualità (€)", ca, [12,29,27,23,28,20,25,26])
+    add_table("Flussi di Cassa — 25 annualità", ca, [12,29,27,23,28,20,25,26])
     story.append(Spacer(1, 5*mm))
     story.append(Paragraph("Simulazione indicativa. Verificare ipotesi tecniche, contrattuali e fiscali con professionisti competenti.", styles["EurekaSmall"]))
-    doc.build(story)
+    def numero_pagina(canvas, documento):
+        canvas.saveState()
+        canvas.setFont("Helvetica", 9)
+        canvas.drawRightString(landscape(A3)[0]-14*mm, 9*mm, f"Pagina {documento.page}")
+        canvas.restoreState()
+    doc.build(story, onFirstPage=numero_pagina, onLaterPages=numero_pagina)
     return buffer.getvalue()
 
 def genera_html_stampa():
@@ -718,7 +830,7 @@ def genera_html_stampa():
         ) + "</tbody></table>"
     import base64
     img = ""
-    if logo_file.exists():
+    if logo_file is not None:
         img = '<img class="logo" src="data:image/png;base64,' + base64.b64encode(logo_file.read_bytes()).decode() + '">'
     dati = "".join(f"<p><b>{_safe(k)}:</b> {_safe(v)}</p>" for k,v in _dati_allegato())
     return f"""<!doctype html><html lang="it"><head><meta charset="utf-8">
@@ -734,15 +846,21 @@ def genera_html_stampa():
     td:not(:first-child){{text-align:right;}}
     .print{{background:#111;color:white;padding:10px 18px;border:0;cursor:pointer;}}
     .page-break{{break-before:page;page-break-before:always;}}
+    .print-footer{{display:none;}}
+    @media print{{
+      .print-footer{{display:block;position:fixed;bottom:0;right:0;font-size:10px;}}
+      .print-footer::after{{content:"Pagina " counter(page);}}
+    }}
     thead{{display:table-header-group;}} tr{{break-inside:avoid;page-break-inside:avoid;}}
     @media print{{.print{{display:none}} @page{{size:A3 landscape;margin:12mm}} body{{margin:0}}}}
     </style></head><body>
     <button class="print" onclick="window.print()">Stampa</button>
+    <div class="print-footer"></div>
     {img}<h1>EUREKA SRL</h1><div class="sub">SOCIETÀ BENEFIT · RISPARMIO ENERGETICO</div>
     <div class="sub">Via Kufstein, 1 · 38121 Trento (TN) · P.IVA 02326350226</div>
     <h2>Allegato preliminare al business plan</h2><div class="dati">{dati}</div>
-    <h2>2 · Perdite di Energia — 25 annualità</h2>{tabella(en)}
-    <section class="page-break"><h2>3 · Flussi di Cassa — 25 annualità (€)</h2>{tabella(ca)}</section>
+    <h2>Perdite di Energia — 25 annualità</h2>{tabella(en)}
+    <section class="page-break"><h2>Flussi di Cassa — 25 annualità</h2>{tabella(ca)}</section>
     <p style="font-size:10px">Simulazione indicativa. Verificare ipotesi tecniche, contrattuali e fiscali.</p>
     </body></html>"""
 
