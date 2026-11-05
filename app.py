@@ -272,7 +272,7 @@ with col_6d:
 st.markdown("---")
 
 # ---------------------------------------------------------
-# 3. PERDITE DI ENERGIA (nei 25 ANNI - 10 COLONNE ESATTE DA EXCEL)
+# 3. PERDITE DI ENERGIA (nei 25 ANNI - MULTIINDEX ESATTO DA EXCEL)
 # ---------------------------------------------------------
 st.header("📉 Perdite di Energia (nei 25 Anni)")
 
@@ -290,107 +290,43 @@ risparmio_auto_eur = [auto_kwh_netto[i] * costo_energia for i in range(25)]
 ricavo_vendita_eur = [vendita_kwh_netto[i] * prezzo_vendita for i in range(25)]
 totale_benefici_perdita = [risparmio_auto_eur[i] + ricavo_vendita_eur[i] for i in range(25)]
 
-df_perdita = pd.DataFrame({
-    "Anno": anni,
-    "Efficienza Residua Stimata (%)": efficienza_residua,
-    "Perdita di Energia Cumulata (%)": perdita_cumulata,
-    "Energia Autoconsumata (Perdita in kWh)": perdita_auto_kwh,
-    "Energia Autoconsumata (kWh)": auto_kwh_netto,
-    "Energia Venduta (Perdita in kWh)": perdita_vendita_kwh,
-    "Energia Venduta (kWh)": vendita_kwh_netto,
-    "Risparmio in Autoconsumo (€)": risparmio_auto_eur,
-    "Ricavo dalla Vendita (€)": ricavo_vendita_eur,
-    "Totale Benefici Energetici per Anno (€)": totale_benefici_perdita
-})
+# Definizione delle colonne MultiIndex esattamente identiche al foglio Excel
+multi_columns = pd.MultiIndex.from_tuples([
+    ("Anno", ""),
+    ("Efficienza Residua Stimata (%)", ""),
+    ("Perdita di Energia Cumulata (%)", ""),
+    ("Energia Autoconsumata", "Perdita in kWh"),
+    ("Energia Autoconsumata", "kWh"),
+    ("Energia Venduta", "Perdita in kWh"),
+    ("Energia Venduta", "kWh"),
+    ("Risparmio in Autoconsumo", "€"),
+    ("Ricavo dalla Vendita", "€"),
+    ("Totale Benefici Energetici per Anno", "€")
+])
+
+df_perdita_data = list(zip(
+    anni,
+    efficienza_residua,
+    perdita_cumulata,
+    perdita_auto_kwh,
+    auto_kwh_netto,
+    perdita_vendita_kwh,
+    vendita_kwh_netto,
+    risparmio_auto_eur,
+    ricavo_vendita_eur,
+    totale_benefici_perdita
+))
+
+df_perdita = pd.DataFrame(df_perdita_data, columns=multi_columns)
 
 st.dataframe(df_perdita.style.format({
-    "Efficienza Residua Stimata (%)": "{:.2%}",
-    "Perdita di Energia Cumulata (%)": "{:.2%}",
-    "Energia Autoconsumata (Perdita in kWh)": "{:,.2f}",
-    "Energia Autoconsumata (kWh)": "{:,.2f}",
-    "Energia Venduta (Perdita in kWh)": "{:,.2f}",
-    "Energia Venduta (kWh)": "{:,.2f}",
-    "Risparmio in Autoconsumo (€)": "€ {:.2f}",
-    "Ricavo dalla Vendita (€)": "€ {:.2f}",
-    "Totale Benefici Energetici per Anno (€)": "€ {:.2f}"
-}), use_container_width=True, hide_index=True, height=950)
-
-st.markdown("---")
-
-# ---------------------------------------------------------
-# 4. FLUSSI DI CASSA (25 ANNI COMPLETI, COLLEGATI A PERDITA DI ENERGIA)
-# ---------------------------------------------------------
-def calcola_coefficiente_fiscale(forma, reg, add_com):
-    if forma == "Regime Forfettario":
-        return 0.0
-    info_reg = regioni_db[reg]
-    irap = info_reg["irap"]
-    if forma == "Società di Capitali (S.r.l., S.p.A.)":
-        return 0.24 + irap
-    else:
-        return 0.35 + irap + info_reg["add_reg_min"] + add_com
-
-coeff_fiscale = calcola_coefficiente_fiscale(st.session_state["forma_giuridica"], st.session_state["regione"], st.session_state["add_comunale"] / 100.0)
-
-rata_mensile_val = st.session_state["rata_mensile"]
-beneficio_fiscale_mensile = rata_mensile_val * coeff_fiscale
-beneficio_fiscale_annuale = np.ceil(beneficio_fiscale_mensile) * 12.0
-
-st.subheader("📊 Flussi di Cassa")
-
-col_opt1, col_opt2 = st.columns(2)
-with col_opt1:
-    st.number_input("Manutenzione Annuale (€)", step=50.0, key="manutenzione_default")
-with col_opt2:
-    st.number_input("Riscatto Finale (Anno 7) (€)", step=50.0, key="riscatto_default")
-
-manut_val = st.session_state["manutenzione_default"]
-riscatto_val = st.session_state["riscatto_default"]
-
-rata_bimestrale = rata_mensile_val * 2.0
-noleggio_annuale = rata_bimestrale * 6.0
-
-df_flussi = pd.DataFrame({
-    "Anno": anni,
-    "Benefici Energetici (€)": totale_benefici_perdita,
-    "Benefici Fiscali (€)": [beneficio_fiscale_annuale if a <= durata_noleggio else np.nan for a in anni],
-    "Noleggio (€)": [-noleggio_annuale if a <= durata_noleggio else np.nan for a in anni],
-    "Manutenzione Annuale (€)": [manut_val] * 25,
-    "Riscatto (€)": [riscatto_val if a == durata_noleggio else np.nan for a in anni]
-})
-
-cols_to_sum = [
-    "Benefici Energetici (€)",
-    "Benefici Fiscali (€)",
-    "Noleggio (€)",
-    "Manutenzione Annuale (€)",
-    "Riscatto (€)"
-]
-
-df_flussi["Flusso Netto (€)"] = df_flussi[cols_to_sum].sum(axis=1)
-df_flussi["Cumulato (€)"] = df_flussi["Flusso Netto (€)"].cumsum()
-
-st.dataframe(df_flussi.style.format({
-    "Benefici Energetici (€)": "€ {:.2f}",
-    "Benefici Fiscali (€)": lambda x: f"€ {x:.2f}" if pd.notnull(x) else "",
-    "Noleggio (€)": lambda x: f"€ {x:.2f}" if pd.notnull(x) else "",
-    "Manutenzione Annuale (€)": "€ {:.2f}",
-    "Riscatto (€)": lambda x: f"€ {x:.2f}" if pd.notnull(x) else "",
-    "Flusso Netto (€)": "€ {:.2f}",
-    "Cumulato (€)": "€ {:.2f}"
-}), use_container_width=True, hide_index=True, height=950)
-
-st.markdown("---")
-
-# ---------------------------------------------------------
-# 5. PARAMETRI NOLEGGIO OPERATIVO (IN CODA)
-# ---------------------------------------------------------
-st.header("💳 Parametri Noleggio Operativo")
-col_n1, col_n2 = st.columns(2)
-with col_n1:
-    st.number_input("A2: Rata Mensile Noleggio (€)", step=10.0, key="rata_mensile")
-with col_n2:
-    rb_str = f"€ {rata_bimestrale:.2f}"
-    na_str = f"€ {noleggio_annuale:.2f}"
-    st.markdown(f"**A4 Rata Bimestrale:** {rb_str}")
-    st.markdown(f"**Noleggio Annuale (D2):** {na_str}")
+    ("Efficienza Residua Stimata (%)", ""): "{:.2%}",
+    ("Perdita di Energia Cumulata (%)", ""): "{:.2%}",
+    ("Energia Autoconsumata", "Perdita in kWh"): "{:,.2f}",
+    ("Energia Autoconsumata", "kWh"): "{:,.2f}",
+    ("Energia Venduta", "Perdita in kWh"): "{:,.2f}",
+    ("Energia Venduta", "kWh"): "{:,.2f}",
+    ("Risparmio in Autoconsumo", "€"): "€ {:.2f}",
+    ("Ricavo dalla Vendita", "€"): "€ {:.2f}",
+    ("Totale Benefici Energetici per Anno", "€"): "€ {:.2f}"
+}), use_container_width=True, hide_index
