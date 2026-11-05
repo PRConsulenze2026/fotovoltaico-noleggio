@@ -2,364 +2,458 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
-st.set_page_config(page_title="Simulatore Flusso di Cassa Fotovoltaico", layout="wide")
+# =========================================================
+# CONFIGURAZIONE E STILE
+# =========================================================
+st.set_page_config(
+    page_title="Eureka | Simulatore fotovoltaico",
+    page_icon="☀️",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 
-# CSS personalizzato per i campi di input
 st.markdown("""
 <style>
-div.stNumberInput input, div.stTextInput input, div.stDateInput input {
-    font-size: 13px !important;
-    padding: 4px 8px !important;
-    background-color: #2b2b2b !important;
-    color: #ffffff !important;
-    border: 1px solid #4f4f4f !important;
-    border-radius: 4px !important;
-}
-input:disabled, textarea:disabled {
-    background-color: #1e1e1e !important;
-    -webkit-text-fill-color: #ffffff !important;
-    color: #ffffff !important;
-    border: 1px solid #3f3f3f !important;
-    opacity: 1 !important;
-}
-div[data-testid="stDataFrame"] > div {
-    max-height: none !important;
-}
+:root { --ink:#000000; --muted:#333333; --line:#dddddd; --brand:#111111; }
+[data-testid="stAppViewContainer"] { background:#f5f7fb; }
+[data-testid="stHeader"] { background:rgba(245,247,251,.88); }
+.block-container { padding-top:1.7rem; padding-bottom:2.5rem; max-width:1500px; }
+[data-testid="stSidebar"] { background:#111111; }
+[data-testid="stSidebar"] * { color:#f3f7fb !important; }
+[data-testid="stSidebar"] [data-baseweb="input"] input,
+[data-testid="stSidebar"] [data-baseweb="select"] { color:#14243a !important; }
+[data-testid="stSidebar"] [data-baseweb="input"] input { background:#fff !important; }
+[data-testid="stMetric"] { background:#fff; border:1px solid var(--line); padding:16px 18px; border-radius:13px; box-shadow:0 2px 8px rgba(20,36,58,.035); }
+[data-testid="stMetricLabel"] { color:var(--muted); font-weight:600; }
+[data-testid="stMetricValue"] { color:var(--ink); }
+section[data-testid="stSidebar"] .stButton button { width:100%; }
+.stButton button[kind="primary"] { background:var(--brand); border-color:var(--brand); }
+div[data-testid="stTabs"] button { font-weight:650; }
+div[data-testid="stDataFrame"] { border:1px solid var(--line); border-radius:10px; }
+div[data-testid="stAlert"] { border-radius:10px; }
+.hero { background:#ffffff; color:#000000; border:1px solid #d6d6d6; padding:25px 28px; border-radius:16px; margin-bottom:20px; }
+.hero h1 { color:#000000; font-size:1.8rem; margin:0 0 5px 0; }
+.hero p { color:#000000; margin:0; }
+.section-note { color:#66758a; font-size:.92rem; margin-top:-8px; }
+.small-caption { color:#6b7a8e; font-size:.82rem; }
 </style>
 """, unsafe_allow_html=True)
 
-# ---------------------------------------------------------
-# INIZIALIZZAZIONE SESSION STATE
-# ---------------------------------------------------------
+# =========================================================
+# DATI DI DEFAULT E FUNZIONI
+# =========================================================
 DEFAULTS = {
-    "potenza_kwp": 0.0,
-    "azienda": "",
-    "indirizzo": "",
-    "citta": "",
-    "cap": "",
-    "prov": "",
-    "protocollo": "",
-    "data_offerta": pd.to_datetime("today").date(),
-    "prod_impianto": 0.0,
-    "durata_noleggio": 7,
-    "autoconsumo_pct": 0.0,
-    "costo_energia_pagata": 0.0,
-    "cessione_pct": 0.0,
-    "prezzo_energia_venduta": 0.00000,
-    "rata_mensile": 0.0,
-    "manutenzione_default": 0.0,
-    "riscatto_default": 0.0,
+    "potenza_kwp": 0.0, "azienda": "", "indirizzo": "", "citta": "", "referente_commerciale": "",
+    "cap": "", "prov": "", "protocollo": "", "data_offerta": pd.Timestamp.today().date(),
+    "prod_impianto": 0.0, "durata_noleggio": 7, "autoconsumo_pct": 0.0,
+    "costo_energia_pagata": 0.0, "cessione_pct": 0.0,
+    "prezzo_energia_venduta": 0.0, "rata_mensile": 0.0,
+    "manutenzione_default": 0.0, "riscatto_default": 0.0,
     "forma_giuridica": "Società di Capitali (S.r.l., S.p.A.)",
-    "regione": "Puglia",
-    "add_comunale": 0.8,
+    "regione": "Puglia", "add_comunale": 0.8,
+}
+for key, value in DEFAULTS.items():
+    if key not in st.session_state:
+        st.session_state[key] = value
+
+regioni_db = {
+    "Abruzzo": {"irap": .0390, "add_reg_min": .0173, "add_reg_max": .0333},
+    "Basilicata": {"irap": .0390, "add_reg_min": .0123, "add_reg_max": .0233},
+    "Calabria": {"irap": .0482, "add_reg_min": .0203, "add_reg_max": .0333},
+    "Campania": {"irap": .0497, "add_reg_min": .0203, "add_reg_max": .0333},
+    "Emilia-Romagna": {"irap": .0390, "add_reg_min": .0133, "add_reg_max": .0227},
+    "Friuli-Venezia Giulia": {"irap": .0390, "add_reg_min": .0123, "add_reg_max": .0123},
+    "Lazio": {"irap": .0482, "add_reg_min": .0173, "add_reg_max": .0333},
+    "Liguria": {"irap": .0390, "add_reg_min": .0123, "add_reg_max": .0333},
+    "Lombardia": {"irap": .0390, "add_reg_min": .0123, "add_reg_max": .0173},
+    "Marche": {"irap": .0390, "add_reg_min": .0123, "add_reg_max": .0173},
+    "Molise": {"irap": .0482, "add_reg_min": .0173, "add_reg_max": .0333},
+    "Piemonte": {"irap": .0390, "add_reg_min": .0162, "add_reg_max": .0333},
+    "Puglia": {"irap": .0482, "add_reg_min": .0123, "add_reg_max": .0173},
+    "Sardegna": {"irap": .0293, "add_reg_min": .0123, "add_reg_max": .0123},
+    "Sicilia": {"irap": .0390, "add_reg_min": .0123, "add_reg_max": .0173},
+    "Toscana": {"irap": .0390, "add_reg_min": .0142, "add_reg_max": .0173},
+    "Trentino-Alto Adige": {"irap": .0346, "add_reg_min": .0123, "add_reg_max": .0123},
+    "Umbria": {"irap": .0390, "add_reg_min": .0123, "add_reg_max": .0183},
+    "Valle d'Aosta": {"irap": .0390, "add_reg_min": .0123, "add_reg_max": .0123},
+    "Veneto": {"irap": .0390, "add_reg_min": .0123, "add_reg_max": .0123},
 }
 
-for key, val in DEFAULTS.items():
-    if key not in st.session_state:
-        st.session_state[key] = val
+def euro(value):
+    return f"€ {value:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+def numero(value, decimali=2):
+    return f"{value:,.{decimali}f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 def reset_dati():
-    for key, val in DEFAULTS.items():
-        st.session_state[key] = val
+    for key, value in DEFAULTS.items():
+        st.session_state[key] = value
     st.rerun()
 
-# ---------------------------------------------------------
-# INTESTAZIONE & RESET
-# ---------------------------------------------------------
-col_title, col_reset = st.columns([4, 1])
-with col_title:
-    st.title("⚡ Simulatore Flusso di Cassa Fotovoltaico in Noleggio Operativo")
-with col_reset:
-    st.write("")
-    if st.button("🔄 Reset Tutti i Dati", use_container_width=True, type="primary"):
-        reset_dati()
+def calcola_coefficiente_fiscale(forma, regione, add_com):
+    if forma == "Regime Forfettario":
+        return 0.0
+    info = regioni_db[regione]
+    if forma == "Società di Capitali (S.r.l., S.p.A.)":
+        return 0.24 + info["irap"]
+    return 0.35 + info["irap"] + info["add_reg_min"] + add_com
 
-st.markdown("---")
+# =========================================================
+# SIDEBAR: INPUT GUIDATI
+# =========================================================
+st.sidebar.markdown("# ☀️ SolarCash")
+st.sidebar.caption("EUREKA SRL · SOCIETÀ BENEFIT")
+st.sidebar.caption("Simulatore di convenienza fotovoltaica")
+st.sidebar.text_input("Referente commerciale Eureka", key="referente_commerciale")
+if st.sidebar.button("↺  Ripristina tutti i dati", use_container_width=True):
+    reset_dati()
+st.sidebar.divider()
 
-# ---------------------------------------------------------
-# 0. ANAGRAFICA & DATI OFFERTA
-# ---------------------------------------------------------
-st.header("📄 Anagrafica e Dati Offerta")
+with st.sidebar.expander("1 · Cliente e offerta", expanded=True):
+    st.text_input("Cliente / ragione sociale", key="azienda", placeholder="Nome azienda")
+    st.text_input("Indirizzo", key="indirizzo", placeholder="Via e numero civico")
+    c1, c2 = st.columns(2)
+    with c1:
+        st.text_input("Città", key="citta")
+        st.text_input("CAP", key="cap")
+    with c2:
+        st.text_input("Provincia", key="prov", max_chars=2)
+        st.date_input("Data offerta", key="data_offerta")
+    st.text_input("Protocollo offerta", key="protocollo")
+    st.number_input("Potenza impianto (kWp)", min_value=0.0, step=.1, format="%.3f", key="potenza_kwp")
 
-col_d_top1, col_d_top2 = st.columns([4, 1])
-with col_d_top2:
-    st.date_input("DATA", key="data_offerta")
+with st.sidebar.expander("2 · Produzione ed energia", expanded=True):
+    st.number_input("Produzione totale stimata (kWh)", min_value=0.0, step=500.0, key="prod_impianto")
+    st.number_input("Durata noleggio (anni)", min_value=1, max_value=25, step=1, key="durata_noleggio")
+    st.number_input("Quota autoconsumo (%)", min_value=0.0, max_value=100.0, step=5.0, key="autoconsumo_pct")
+    st.number_input("Costo energia acquistata (€/kWh)", min_value=0.0, step=.0001, format="%.5f", key="costo_energia_pagata")
+    st.number_input("Quota energia ceduta (%)", min_value=0.0, max_value=100.0, step=1.0, key="cessione_pct")
+    st.number_input("Prezzo energia venduta (€/kWh)", min_value=0.0, step=.0001, format="%.5f", key="prezzo_energia_venduta")
+    if st.session_state.autoconsumo_pct + st.session_state.cessione_pct > 100:
+        st.warning("Autoconsumo e cessione superano complessivamente il 100% della produzione.")
 
-col_a1, col_a2, col_a3 = st.columns([3, 1, 1])
-with col_a1:
-    st.markdown("**OFFERTA PRELIMINARE PER IL NOLEGGIO DI UN IMPIANTO FOTOVOLTAICO DA:**")
-with col_a2:
-    st.number_input("kWp", step=0.001, format="%.3f", label_visibility="collapsed", key="potenza_kwp")
-with col_a3:
-    st.markdown("**kWp**")
+with st.sidebar.expander("3 · Noleggio e costi", expanded=True):
+    st.number_input("Rata mensile (€)", min_value=0.0, step=10.0, key="rata_mensile")
+    st.number_input("Manutenzione annuale (€)", min_value=0.0, step=50.0, key="manutenzione_default")
+    st.number_input("Riscatto finale (€)", min_value=0.0, step=50.0, key="riscatto_default")
 
-col_b1, col_b2 = st.columns([3, 2])
-with col_b1:
-    st.markdown("**PER AUTOCONSUMO DI ENERGIA**")
-with col_b2:
-    st.text_input("Protocollo", placeholder="Protocollo...", label_visibility="collapsed", key="protocollo")
+with st.sidebar.expander("4 · Parametri fiscali", expanded=False):
+    forme = ["Società di Capitali (S.r.l., S.p.A.)", "Impresa individuale / Società di persone", "Regime Forfettario"]
+    st.selectbox("Forma giuridica", forme, key="forma_giuridica")
+    st.selectbox("Regione", list(regioni_db.keys()), key="regione")
+    st.number_input("Addizionale comunale (%)", min_value=0.0, max_value=3.0, step=.1, format="%.2f", key="add_comunale")
+    st.caption("Aliquote e beneficio fiscale sono parametri semplificati del modello: verificarli con il consulente fiscale.")
 
-st.markdown("---")
+# =========================================================
+# CALCOLI (logica del modello originale mantenuta)
+# =========================================================
+prod_impianto = float(st.session_state.prod_impianto)
+durata_noleggio = int(st.session_state.durata_noleggio)
+autoconsumo_pct = st.session_state.autoconsumo_pct / 100
+costo_energia = float(st.session_state.costo_energia_pagata)
+prezzo_vendita = float(st.session_state.prezzo_energia_venduta)
+cessione_pct = st.session_state.cessione_pct / 100
 
-col_c1, col_c2 = st.columns(2)
-with col_c1:
-    st.text_input("AZIENDA (Nome Cliente / Ragione Sociale)", placeholder="Inserisci nome azienda...", key="azienda")
-    st.text_input("INDIRIZZO", placeholder="Via / Piazza e civico...", key="indirizzo")
-with col_c2:
-    st.text_input("CITTA'", placeholder="Città...", key="citta")
-    col_cp1, col_cp2 = st.columns([2, 1])
-    with col_cp1:
-        st.text_input("CAP", placeholder="CAP", key="cap")
-    with col_cp2:
-        st.text_input("PROV.", placeholder="Prov.", key="prov")
-
-st.markdown("---")
-
-# ---------------------------------------------------------
-# 1. INQUADRAMENTO FISCALE
-# ---------------------------------------------------------
-regioni_db = {
-    "Abruzzo": {"irap": 0.0390, "add_reg_min": 0.0173, "add_reg_max": 0.0333},
-    "Basilicata": {"irap": 0.0390, "add_reg_min": 0.0123, "add_reg_max": 0.0233},
-    "Calabria": {"irap": 0.0482, "add_reg_min": 0.0203, "add_reg_max": 0.0333},
-    "Campania": {"irap": 0.0497, "add_reg_min": 0.0203, "add_reg_max": 0.0333},
-    "Emilia-Romagna": {"irap": 0.0390, "add_reg_min": 0.0133, "add_reg_max": 0.0227},
-    "Friuli-Venezia Giulia": {"irap": 0.0390, "add_reg_min": 0.0123, "add_reg_max": 0.0123},
-    "Lazio": {"irap": 0.0482, "add_reg_min": 0.0173, "add_reg_max": 0.0333},
-    "Liguria": {"irap": 0.0390, "add_reg_min": 0.0123, "add_reg_max": 0.0333},
-    "Lombardia": {"irap": 0.0390, "add_reg_min": 0.0123, "add_reg_max": 0.0173},
-    "Marche": {"irap": 0.0390, "add_reg_min": 0.0123, "add_reg_max": 0.0173},
-    "Molise": {"irap": 0.0482, "add_reg_min": 0.0173, "add_reg_max": 0.0333},
-    "Piemonte": {"irap": 0.0390, "add_reg_min": 0.0162, "add_reg_max": 0.0333},
-    "Puglia": {"irap": 0.0482, "add_reg_min": 0.0123, "add_reg_max": 0.0173},
-    "Sardegna": {"irap": 0.0293, "add_reg_min": 0.0123, "add_reg_max": 0.0123},
-    "Sicilia": {"irap": 0.0390, "add_reg_min": 0.0123, "add_reg_max": 0.0173},
-    "Toscana": {"irap": 0.0390, "add_reg_min": 0.0142, "add_reg_max": 0.0173},
-    "Trentino-Alto Adige": {"irap": 0.0346, "add_reg_min": 0.0123, "add_reg_max": 0.0123},
-    "Umbria": {"irap": 0.0390, "add_reg_min": 0.0123, "add_reg_max": 0.0183},
-    "Valle d'Aosta": {"irap": 0.0390, "add_reg_min": 0.0123, "add_reg_max": 0.0123},
-    "Veneto": {"irap": 0.0390, "add_reg_min": 0.0123, "add_reg_max": 0.0123}
-}
-
-# ---------------------------------------------------------
-# 2. BENEFICI ENERGETICI
-# ---------------------------------------------------------
-st.header("💡 Benefici Energetici")
-
-prod_impianto = st.session_state["prod_impianto"]
-durata_noleggio = st.session_state["durata_noleggio"] if st.session_state["durata_noleggio"] > 0 else 1
-autoconsumo_pct = st.session_state["autoconsumo_pct"] / 100.0
-costo_energia = st.session_state["costo_energia_pagata"]
-prezzo_vendita = st.session_state["prezzo_energia_venduta"]
-cessione_pct = st.session_state["cessione_pct"] / 100.0
-
-prod_media_annuale = prod_impianto / durata_noleggio if durata_noleggio > 0 else 0
+prod_media_annuale = prod_impianto / durata_noleggio if durata_noleggio else 0
 energia_autoconsumata = prod_media_annuale * autoconsumo_pct
 risparmio_autoconsumo = energia_autoconsumata * costo_energia
 energia_venduta = prod_media_annuale * cessione_pct
 ricavo_vendita = energia_venduta * prezzo_vendita
 totale_benefici = risparmio_autoconsumo + ricavo_vendita
 
-col_1a, col_1b, col_1c, col_1d = st.columns([3, 2, 2, 2])
-with col_1a:
-    st.markdown("**Produzione Media Annuale**")
-with col_1b:
-    st.markdown("*Produzione Impianto/kWh*")
-    st.number_input("B2", step=500.0, key="prod_impianto", label_visibility="collapsed")
-with col_1c:
-    st.markdown("*Anni Durata Noleggio*")
-    st.number_input("C2", step=1, key="durata_noleggio", label_visibility="collapsed")
-with col_1d:
-    st.markdown("*kWh*")
-    st.text_input("D1", value=f"{prod_media_annuale:,.2f}", disabled=True, label_visibility="collapsed")
-
-st.markdown("---")
-
-col_2a, col_2b, col_2c, col_2d = st.columns([3, 2, 2, 2])
-with col_2a:
-    st.markdown("**Energia Autoconsumata**")
-with col_2b:
-    st.markdown("*Produzione Media Annuale*")
-    st.text_input("D2", value=f"{prod_media_annuale:,.2f}", disabled=True, label_visibility="collapsed")
-with col_2c:
-    st.markdown("*Autoconsumo/Produzione in %*")
-    st.number_input("C4", step=5.0, key="autoconsumo_pct", label_visibility="collapsed")
-with col_2d:
-    st.markdown("*kWh*")
-    st.text_input("D3", value=f"{energia_autoconsumata:,.2f}", disabled=True, label_visibility="collapsed")
-
-st.markdown("---")
-
-col_3a, col_3b, col_3c, col_3d = st.columns([3, 2, 2, 2])
-with col_3a:
-    st.markdown("**Risparmio in Autoconsumo**")
-with col_3b:
-    st.markdown("*Energia Autoconsumata*")
-    st.text_input("D4", value=f"{energia_autoconsumata:,.2f}", disabled=True, label_visibility="collapsed")
-with col_3c:
-    st.markdown("*Costo Energia Attualmente Pagata in kWh*")
-    st.number_input("C6", step=0.00001, format="%.5f", key="costo_energia_pagata", label_visibility="collapsed")
-with col_3d:
-    st.markdown("*€.*")
-    st.text_input("D5", value=f"€ {risparmio_autoconsumo:,.2f}", disabled=True, label_visibility="collapsed")
-
-st.markdown("---")
-
-col_4a, col_4b, col_4c, col_4d = st.columns([3, 2, 2, 2])
-with col_4a:
-    st.markdown("**Energia Venduta**")
-with col_4b:
-    st.markdown("*Produzione Media Annuale*")
-    st.text_input("D6", value=f"{prod_media_annuale:,.2f}", disabled=True, label_visibility="collapsed")
-with col_4c:
-    st.markdown("*Cessione EE/Produzione di Energia in %*")
-    st.number_input("C8", step=1.0, format="%.2f", key="cessione_pct", label_visibility="collapsed")
-with col_4d:
-    st.markdown("*kWh*")
-    st.text_input("D7", value=f"{energia_venduta:,.2f}", disabled=True, label_visibility="collapsed")
-
-st.markdown("---")
-
-col_5a, col_5b, col_5c, col_5d = st.columns([3, 2, 2, 2])
-with col_5a:
-    st.markdown("**Ricavo dalla Vendita**")
-with col_5b:
-    st.markdown("*Energia Venduta*")
-    st.text_input("D8", value=f"{energia_venduta:,.2f}", disabled=True, label_visibility="collapsed")
-with col_5c:
-    st.markdown("*Prezzo Energia Venduta in kWh*")
-    st.number_input("C10", step=0.00001, format="%.5f", key="prezzo_energia_venduta", label_visibility="collapsed")
-with col_5d:
-    st.markdown("*€.*")
-    st.text_input("D9", value=f"€ {ricavo_vendita:,.2f}", disabled=True, label_visibility="collapsed")
-
-st.markdown("---")
-
-col_6a, col_6b, col_6c, col_6d = st.columns([3, 2, 2, 2])
-with col_6a:
-    st.markdown("**Totale Benefici Energetici per Anno**")
-with col_6b:
-    st.markdown("*Risparmio in Autoconsumo*")
-    st.text_input("D10", value=f"€ {risparmio_autoconsumo:,.2f}", disabled=True, label_visibility="collapsed")
-with col_6c:
-    st.markdown("*Ricavo dalla Vendita*")
-    st.text_input("D11", value=f"€ {ricavo_vendita:,.2f}", disabled=True, label_visibility="collapsed")
-with col_6d:
-    st.markdown("*€. (Totale)*")
-    st.text_input("D12", value=f"€ {totale_benefici:,.2f}", disabled=True, label_visibility="collapsed")
-
-st.markdown("---")
-
-# ---------------------------------------------------------
-# 3. PERDITA DI ENERGIA (25 ANNI)
-# ---------------------------------------------------------
-st.header("📉 Perdita di Energia (nei 25 Anni)")
-
 anni = list(range(1, 26))
-efficienza_residua = [1.0 if a == 1 else round(1.0 - 0.005 * (a - 1), 3) for a in anni]
-perdita_cumulata = [0.0 if a == 1 else round(0.005 * (a - 1), 3) for a in anni]
-
-perdita_auto_kwh = [0.0 if a == 1 else - (energia_autoconsumata * perdita_cumulata[i]) for i, a in enumerate(anni)]
-auto_kwh_netto = [energia_autoconsumata + perdita_auto_kwh[i] for i in range(25)]
-
-perdita_vendita_kwh = [0.0 if a == 1 else - (energia_venduta * perdita_cumulata[i]) for i, a in enumerate(anni)]
-vendita_kwh_netto = [energia_venduta + perdita_vendita_kwh[i] for i in range(25)]
-
-risparmio_auto_eur = [auto_kwh_netto[i] * costo_energia for i in range(25)]
-ricavo_vendita_eur = [vendita_kwh_netto[i] * prezzo_vendita for i in range(25)]
+perdita_cumulata = [0.0 if a == 1 else round(.005 * (a - 1), 3) for a in anni]
+efficienza_residua = [1.0 - p for p in perdita_cumulata]
+perdita_auto_kwh = [-(energia_autoconsumata * p) for p in perdita_cumulata]
+auto_kwh_netto = [energia_autoconsumata + p for p in perdita_auto_kwh]
+perdita_vendita_kwh = [-(energia_venduta * p) for p in perdita_cumulata]
+vendita_kwh_netto = [energia_venduta + p for p in perdita_vendita_kwh]
+risparmio_auto_eur = [v * costo_energia for v in auto_kwh_netto]
+ricavo_vendita_eur = [v * prezzo_vendita for v in vendita_kwh_netto]
 totale_benefici_perdita = [risparmio_auto_eur[i] + ricavo_vendita_eur[i] for i in range(25)]
 
 df_perdita = pd.DataFrame({
     "Anno": anni,
-    "Efficienza Residua Stimata (%)": efficienza_residua,
-    "Perdita di Energia Cumulata (%)": perdita_cumulata,
-    "Energia Autoconsumata (Perdita in kWh)": perdita_auto_kwh,
-    "Energia Autoconsumata (kWh)": auto_kwh_netto,
-    "Energia Venduta (Perdita in kWh)": perdita_vendita_kwh,
-    "Energia Venduta (kWh)": vendita_kwh_netto,
-    "Risparmio in Autoconsumo (€)": risparmio_auto_eur,
-    "Ricavo dalla Vendita (€)": ricavo_vendita_eur,
-    "Totale Benefici Energetici per Anno (€)": totale_benefici_perdita
+    "Efficienza residua (%)": efficienza_residua,
+    "Perdita cumulata (%)": perdita_cumulata,
+    "Autoconsumo perso (kWh)": perdita_auto_kwh,
+    "Autoconsumo netto (kWh)": auto_kwh_netto,
+    "Energia ceduta persa (kWh)": perdita_vendita_kwh,
+    "Energia ceduta netta (kWh)": vendita_kwh_netto,
+    "Risparmio autoconsumo (€)": risparmio_auto_eur,
+    "Ricavo vendita (€)": ricavo_vendita_eur,
+    "Benefici energetici (€)": totale_benefici_perdita,
 })
 
-st.dataframe(df_perdita.style.format({
-    "Efficienza Residua Stimata (%)": "{:.2%}",
-    "Perdita di Energia Cumulata (%)": "{:.2%}",
-    "Energia Autoconsumata (Perdita in kWh)": "{:,.2f}",
-    "Energia Autoconsumata (kWh)": "{:,.2f}",
-    "Energia Venduta (Perdita in kWh)": "{:,.2f}",
-    "Energia Venduta (kWh)": "{:,.2f}",
-    "Risparmio in Autoconsumo (€)": "€ {:.2f}",
-    "Ricavo dalla Vendita (€)": "€ {:.2f}",
-    "Totale Benefici Energetici per Anno (€)": "€ {:.2f}"
-}), use_container_width=True, hide_index=True, height=950)
-
-st.markdown("---")
-
-# ---------------------------------------------------------
-# 4. FLUSSI DI CASSA
-# ---------------------------------------------------------
-def calcola_coefficiente_fiscale(forma, reg, add_com):
-    if forma == "Regime Forfettario":
-        return 0.0
-    info_reg = regioni_db[reg]
-    irap = info_reg["irap"]
-    if forma == "Società di Capitali (S.r.l., S.p.A.)":
-        return 0.24 + irap
-    else:
-        return 0.35 + irap + info_reg["add_reg_min"] + add_com
-
-coeff_fiscale = calcola_coefficiente_fiscale(st.session_state["forma_giuridica"], st.session_state["regione"], st.session_state["add_comunale"] / 100.0)
-
-rata_mensile_val = st.session_state["rata_mensile"]
-beneficio_fiscale_mensile = rata_mensile_val * coeff_fiscale
-beneficio_fiscale_annuale = np.ceil(beneficio_fiscale_mensile) * 12.0
-
-st.subheader("📊 Flussi di Cassa")
-
-col_opt1, col_opt2 = st.columns(2)
-with col_opt1:
-    st.number_input("Manutenzione Annuale (€)", step=50.0, key="manutenzione_default")
-with col_opt2:
-    st.number_input("Riscatto Finale (Anno 7) (€)", step=50.0, key="riscatto_default")
-
-manut_val = st.session_state["manutenzione_default"]
-riscatto_val = st.session_state["riscatto_default"]
-
-rata_bimestrale = rata_mensile_val * 2.0
-noleggio_annuale = rata_bimestrale * 6.0
+coeff_fiscale = calcola_coefficiente_fiscale(
+    st.session_state.forma_giuridica,
+    st.session_state.regione,
+    st.session_state.add_comunale / 100,
+)
+rata_mensile = float(st.session_state.rata_mensile)
+beneficio_fiscale_mensile = rata_mensile * coeff_fiscale
+beneficio_fiscale_annuale = np.ceil(beneficio_fiscale_mensile) * 12
+rata_bimestrale = rata_mensile * 2
+noleggio_annuale = rata_bimestrale * 6
+manutenzione = float(st.session_state.manutenzione_default)
+riscatto = float(st.session_state.riscatto_default)
 
 df_flussi = pd.DataFrame({
     "Anno": anni,
-    "Benefici Energetici (€)": totale_benefici_perdita,
-    "Benefici Fiscali (€)": [beneficio_fiscale_annuale if a <= durata_noleggio else np.nan for a in anni],
+    "Benefici energetici (€)": totale_benefici_perdita,
+    "Benefici fiscali (€)": [beneficio_fiscale_annuale if a <= durata_noleggio else np.nan for a in anni],
     "Noleggio (€)": [-noleggio_annuale if a <= durata_noleggio else np.nan for a in anni],
-    "Manutenzione Annuale (€)": [manut_val] * 25,
-    "Riscatto (€)": [riscatto_val if a == durata_noleggio else np.nan for a in anni]
+    "Manutenzione (€)": [-manutenzione] * 25,
+    "Riscatto (€)": [-riscatto if a == durata_noleggio else np.nan for a in anni],
 })
+colonne_flusso = ["Benefici energetici (€)", "Benefici fiscali (€)", "Noleggio (€)", "Manutenzione (€)", "Riscatto (€)"]
+df_flussi["Flusso netto (€)"] = df_flussi[colonne_flusso].sum(axis=1)
+df_flussi["Cumulato (€)"] = df_flussi["Flusso netto (€)"].cumsum()
 
-df_flussi["Flusso Netto (€)"] = df_flussi[["Benefici Energetici (€)", "Benefici Fiscali (€)", "Noleggio (€)", "Manutenzione Annuale (€)", "Riscatto (€)"]].sum(axis=1)
-df_flussi["Cumulato (€)"] = df_flussi["Flusso Netto (€)"].cumsum()
+# =========================================================
+# AREA PRINCIPALE
+# =========================================================
+cliente = st.session_state.azienda.strip() or "Nuova simulazione"
+st.markdown(f"""
+<div class="hero">
+  <h1>☀️ Simulatore fotovoltaico</h1>
+  <p>Analisi economica del noleggio operativo · {cliente}</p>
+</div>
+""", unsafe_allow_html=True)
 
-st.dataframe(df_flussi.style.format({
-    "Benefici Energetici (€)": "€ {:.2f}",
-    "Benefici Fiscali (€)": lambda x: f"€ {x:.2f}" if pd.notnull(x) else "",
-    "Noleggio (€)": lambda x: f"€ {x:.2f}" if pd.notnull(x) else "",
-    "Manutenzione Annuale (€)": "€ {:.2f}",
-    "Riscatto (€)": lambda x: f"€ {x:.2f}" if pd.notnull(x) else "",
-    "Flusso Netto (€)": "€ {:.2f}",
-    "Cumulato (€)": "€ {:.2f}"
-}), use_container_width=True, hide_index=True, height=950)
+# KPI sintetici
+k1, k2, k3, k4 = st.columns(4)
+k1.metric("Produzione media annua", f"{numero(prod_media_annuale, 0)} kWh")
+k2.metric("Benefici energetici annui · anno 1", euro(totale_benefici))
+k3.metric("Canone annuo", euro(noleggio_annuale))
+k4.metric("Flusso netto · anno 1", euro(df_flussi.loc[0, "Flusso netto (€)"]))
 
-st.markdown("---")
+if st.session_state.azienda:
+    st.caption(f"Offerta del {st.session_state.data_offerta.strftime('%d/%m/%Y')} · {st.session_state.citta} {st.session_state.prov} · Protocollo: {st.session_state.protocollo or 'non assegnato'}")
+else:
+    st.info("Compila i dati dell'offerta nel pannello laterale per personalizzare la simulazione.")
 
-# ---------------------------------------------------------
-# 5. PARAMETRI NOLEGGIO OPERATIVO
-# ---------------------------------------------------------
-st.header("💳 Parametri Noleggio Operativo")
-col_n1, col_n2 = st.columns(2)
-with col_n1:
-    st.number_input("A2: Rata Mensile Noleggio (€)", step=10.0, key="rata_mensile")
-with col_n2:
-    st.write(f"**A4 Rata Bimestrale:** € {rata_bimestrale:.2f}")
-    st.write(f"**Noleggio Annuale (D2):** € {noleggio_annuale:.2f}")
+# Schede di navigazione
+panoramica, energia, cassa, dettagli = st.tabs(["📌 Panoramica", "⚡ Analisi energetica", "📊 Flussi di cassa", "📄 Dati offerta"])
+
+with panoramica:
+    st.subheader("Sintesi economica")
+    st.markdown("<p class='section-note'>Valori calcolati sulla base dei parametri inseriti nel pannello laterale.</p>", unsafe_allow_html=True)
+    a, b, c = st.columns(3)
+    a.metric("Risparmio da autoconsumo", euro(risparmio_autoconsumo))
+    b.metric("Ricavo da energia ceduta", euro(ricavo_vendita))
+    c.metric("Beneficio fiscale annuo stimato", euro(beneficio_fiscale_annuale))
+
+    chart_df = df_flussi[["Anno", "Flusso netto (€)", "Cumulato (€)"]].set_index("Anno")
+    st.markdown("#### Evoluzione economica su 25 anni")
+    st.dataframe(chart_df, use_container_width=True)
+    break_even = next((int(row["Anno"]) for _, row in df_flussi.iterrows() if row["Cumulato (€)"] >= 0), None)
+    if break_even:
+        st.success(f"Il flusso cumulato raggiunge un valore non negativo nell'anno {break_even}.")
+    else:
+        st.warning("Con i parametri attuali il flusso cumulato non diventa positivo nei 25 anni simulati.")
+    st.caption("Il punto di pareggio è calcolato sul flusso cumulato del modello, senza attualizzazione finanziaria.")
+
+with energia:
+    st.subheader("Benefici energetici")
+    e1, e2, e3 = st.columns(3)
+    e1.metric("Energia autoconsumata", f"{numero(energia_autoconsumata)} kWh/anno")
+    e2.metric("Energia ceduta", f"{numero(energia_venduta)} kWh/anno")
+    e3.metric("Benefici complessivi", euro(totale_benefici))
+    st.markdown("#### Andamento dei benefici energetici")
+    st.dataframe(df_perdita[["Anno", "Benefici energetici (€)"]], use_container_width=True, hide_index=True)
+    with st.expander("Mostra dettaglio annuale della produzione e del degrado"):
+        st.dataframe(
+            df_perdita.style.format({
+                "Efficienza residua (%)": "{:.1%}", "Perdita cumulata (%)": "{:.1%}",
+                "Autoconsumo perso (kWh)": "{:,.2f}", "Autoconsumo netto (kWh)": "{:,.2f}",
+                "Energia ceduta persa (kWh)": "{:,.2f}", "Energia ceduta netta (kWh)": "{:,.2f}",
+                "Risparmio autoconsumo (€)": "€ {:,.2f}", "Ricavo vendita (€)": "€ {:,.2f}",
+                "Benefici energetici (€)": "€ {:,.2f}",
+            }), use_container_width=True, hide_index=True, height=520)
+
+with cassa:
+    st.subheader("Flussi di cassa")
+    f1, f2, f3 = st.columns(3)
+    f1.metric("Rata mensile", euro(rata_mensile))
+    f2.metric("Rata bimestrale", euro(rata_bimestrale))
+    f3.metric("Noleggio annuale", euro(noleggio_annuale))
+    st.markdown("#### Flusso netto e cumulato")
+    st.dataframe(df_flussi[["Anno", "Flusso netto (€)", "Cumulato (€)"]], use_container_width=True, hide_index=True)
+    st.markdown("#### Prospetto completo")
+    st.dataframe(
+        df_flussi.style.format({c: (lambda x: "" if pd.isna(x) else euro(x)) for c in colonne_flusso})
+            .format({"Flusso netto (€)": euro, "Cumulato (€)": euro}),
+        use_container_width=True, hide_index=True, height=560)
+    csv = df_flussi.to_csv(index=False).encode("utf-8-sig")
+    st.download_button("⬇️ Esporta flussi di cassa in CSV", csv, "flussi_di_cassa_fotovoltaico.csv", "text/csv", use_container_width=False)
+
+with dettagli:
+    st.subheader("Riepilogo dell'offerta")
+    left, right = st.columns(2)
+    with left:
+        st.markdown("**Cliente**")
+        st.write(st.session_state.azienda or "—")
+        st.write(st.session_state.indirizzo or "—")
+        st.write(f"{st.session_state.cap} {st.session_state.citta} ({st.session_state.prov})")
+        st.write(f"Protocollo: {st.session_state.protocollo or '—'}")
+        st.write(f"Data: {st.session_state.data_offerta.strftime('%d/%m/%Y')}")
+    with right:
+        st.markdown("**Parametri tecnici ed economici**")
+        st.write(f"Potenza: {numero(st.session_state.potenza_kwp, 3)} kWp")
+        st.write(f"Durata noleggio: {durata_noleggio} anni")
+        st.write(f"Forma giuridica: {st.session_state.forma_giuridica}")
+        st.write(f"Regione: {st.session_state.regione}")
+        st.write(f"Coefficiente fiscale applicato: {coeff_fiscale:.2%}")
+    st.info("I risultati sono simulazioni indicative basate sui dati inseriti. La sezione fiscale richiede verifica professionale e non costituisce un parere tributario.")
+
+st.divider()
+st.caption("Eureka Srl Società Benefit · Simulatore di supporto commerciale · Verificare sempre ipotesi tecniche, contrattuali e fiscali prima di formulare un'offerta definitiva.")
+
+
+# =========================================================
+# ALLEGATO BUSINESS PLAN: PDF E STAMPA
+# =========================================================
+from html import escape as html_escape
+from io import BytesIO
+from pathlib import Path
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, KeepTogether
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.units import mm
+from reportlab.lib.pagesizes import A4
+
+st.divider()
+st.header("Allegato al business plan · PDF e stampa")
+st.caption("Documento preliminare con sezioni energetica ed economico-finanziaria, senza grafici.")
+
+def _fmt_num(v):
+    return f"{float(v):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+def _safe(v):
+    return html_escape(str(v or "—"))
+
+logo_file = Path(__file__).with_name("logo_eureka.png")
+
+def _dati_allegato():
+    return [
+        ("Cliente", st.session_state.azienda or "—"),
+        ("Indirizzo", st.session_state.indirizzo or "—"),
+        ("Località", f"{st.session_state.cap} {st.session_state.citta} ({st.session_state.prov})"),
+        ("Protocollo", st.session_state.protocollo or "—"),
+        ("Data", st.session_state.data_offerta.strftime("%d/%m/%Y")),
+        ("Potenza impianto", f"{_fmt_num(st.session_state.potenza_kwp)} kWp"),
+        ("Durata noleggio", f"{durata_noleggio} anni"),
+        ("Referente commerciale", st.session_state.referente_commerciale or "—"),
+    ]
+
+def _tabelle_allegato():
+    energia_tab = [["Anno", "Autoconsumo (kWh)", "Energia ceduta (kWh)", "Benefici energetici (€)"]]
+    for _, r in df_perdita.iterrows():
+        energia_tab.append([
+            str(int(r["Anno"])),
+            _fmt_num(r["Autoconsumo netto (kWh)"]),
+            _fmt_num(r["Energia ceduta netta (kWh)"]),
+            _fmt_num(r["Benefici energetici (€)"]),
+        ])
+    cassa_tab = [["Anno", "Benefici energetici", "Benefici fiscali", "Noleggio", "Manutenzione", "Riscatto", "Netto", "Cumulato"]]
+    for _, r in df_flussi.iterrows():
+        cassa_tab.append([str(int(r["Anno"]))] + [
+            _fmt_num(0 if pd.isna(r[k]) else r[k]) for k in
+            ["Benefici energetici (€)", "Benefici fiscali (€)", "Noleggio (€)",
+             "Manutenzione (€)", "Riscatto (€)", "Flusso netto (€)", "Cumulato (€)"]
+        ])
+    return energia_tab, cassa_tab
+
+def genera_pdf():
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=13*mm, rightMargin=13*mm,
+                            topMargin=16*mm, bottomMargin=16*mm)
+    styles = getSampleStyleSheet()
+    styles.add(ParagraphStyle(name="EurekaTitle", parent=styles["Heading1"], textColor=colors.black, fontSize=14, spaceAfter=6))
+    styles.add(ParagraphStyle(name="EurekaSmall", parent=styles["Normal"], fontSize=8, leading=11, textColor=colors.black))
+    story = []
+    if logo_file.exists():
+        from reportlab.platypus import Image
+        from PIL import Image as PILImage
+        with PILImage.open(logo_file) as im:
+            w, h = im.size
+        width = min(50*mm, w * 0.22*mm)
+        story.append(Image(str(logo_file), width=width, height=width*h/w))
+        story.append(Spacer(1, 3*mm))
+    story.extend([
+        Paragraph("<b>EUREKA SRL</b>", styles["EurekaTitle"]),
+        Paragraph("SOCIETÀ BENEFIT · RISPARMIO ENERGETICO", styles["EurekaSmall"]),
+        Paragraph("Via Kufstein, 1 · 38121 Trento (TN) · P.IVA 02326350226", styles["EurekaSmall"]),
+        Spacer(1, 8*mm),
+        Paragraph("Allegato preliminare al business plan", styles["EurekaTitle"]),
+    ])
+    for k, v in _dati_allegato():
+        story.append(Paragraph(f"<b>{html_escape(k)}:</b> {html_escape(str(v))}", styles["EurekaSmall"]))
+    story.append(Spacer(1, 7*mm))
+    def add_table(title, data, widths, font_size=7):
+        story.append(Paragraph(title, styles["EurekaTitle"]))
+        t = Table(data, colWidths=widths, repeatRows=1, hAlign="LEFT")
+        t.setStyle(TableStyle([
+            ("BACKGROUND", (0,0),(-1,0),colors.black),
+            ("TEXTCOLOR", (0,0),(-1,0),colors.white),
+            ("ROWBACKGROUNDS", (0,1),(-1,-1),[colors.white,colors.HexColor("#f0f0f0")]),
+            ("TEXTCOLOR", (0,1),(-1,-1),colors.black),
+            ("GRID", (0,0),(-1,-1),0.25,colors.HexColor("#aaaaaa")),
+            ("FONTNAME", (0,0),(-1,0),"Helvetica-Bold"),
+            ("FONTSIZE", (0,0),(-1,-1),font_size),
+            ("VALIGN", (0,0),(-1,-1),"MIDDLE"),
+            ("TOPPADDING",(0,0),(-1,-1),5),
+            ("BOTTOMPADDING",(0,0),(-1,-1),5),
+        ]))
+        story.append(t)
+        story.append(Spacer(1, 8*mm))
+    en, ca = _tabelle_allegato()
+    add_table("2 · Analisi energetica", en, [18*mm, 52*mm, 52*mm, 62*mm])
+    add_table("3 · Analisi economico-finanziaria (€)", ca, [12*mm]+[24.5*mm]*7, 5.7)
+    story.append(Paragraph("Simulazione indicativa. Verificare ipotesi tecniche, contrattuali e fiscali con professionisti competenti.", styles["EurekaSmall"]))
+    doc.build(story)
+    return buffer.getvalue()
+
+def genera_html_stampa():
+    en, ca = _tabelle_allegato()
+    def tabella(rows):
+        return "<table><thead><tr>" + "".join(f"<th>{_safe(x)}</th>" for x in rows[0]) + "</tr></thead><tbody>" + "".join(
+            "<tr>" + "".join(f"<td>{_safe(x)}</td>" for x in row) + "</tr>" for row in rows[1:]
+        ) + "</tbody></table>"
+    import base64
+    img = ""
+    if logo_file.exists():
+        img = '<img class="logo" src="data:image/png;base64,' + base64.b64encode(logo_file.read_bytes()).decode() + '">'
+    dati = "".join(f"<p><b>{_safe(k)}:</b> {_safe(v)}</p>" for k,v in _dati_allegato())
+    return f"""<!doctype html><html lang="it"><head><meta charset="utf-8">
+    <title>Eureka · Allegato al business plan</title>
+    <style>
+    body{{font-family:Arial,sans-serif;color:#000;margin:24px;}}
+    .logo{{max-width:190px;max-height:85px;object-fit:contain;}}
+    h1{{font-size:22px;margin:6px 0 0;}} h2{{font-size:17px;margin-top:30px;}}
+    .sub{{font-size:12px;margin:3px 0 8px;}} .dati p{{margin:3px 0;font-size:12px;}}
+    table{{width:100%;border-collapse:collapse;font-size:10px;table-layout:fixed;}}
+    th{{background:#000;color:#fff;}} th,td{{border:1px solid #aaa;padding:5px;overflow-wrap:anywhere;}}
+    tr:nth-child(even){{background:#f0f0f0;}}
+    .print{{background:#111;color:white;padding:10px 18px;border:0;cursor:pointer;}}
+    @media print{{.print{{display:none}} @page{{size:A4 landscape;margin:12mm}} body{{margin:0}}}}
+    </style></head><body>
+    <button class="print" onclick="window.print()">Stampa</button>
+    {img}<h1>EUREKA SRL</h1><div class="sub">SOCIETÀ BENEFIT · RISPARMIO ENERGETICO</div>
+    <div class="sub">Via Kufstein, 1 · 38121 Trento (TN) · P.IVA 02326350226</div>
+    <h2>Allegato preliminare al business plan</h2><div class="dati">{dati}</div>
+    <h2>2 · Analisi energetica</h2>{tabella(en)}
+    <h2>3 · Analisi economico-finanziaria (€)</h2>{tabella(ca)}
+    <p style="font-size:10px">Simulazione indicativa. Verificare ipotesi tecniche, contrattuali e fiscali.</p>
+    </body></html>"""
+
+col_pdf, col_stampa = st.columns(2)
+with col_pdf:
+    st.download_button("Scarica PDF", genera_pdf(), file_name="Eureka_Allegato_Business_Plan.pdf",
+                       mime="application/pdf", use_container_width=True)
+with col_stampa:
+    st.download_button("Scarica versione per stampa", genera_html_stampa().encode("utf-8"),
+                       file_name="Eureka_Stampa.html", mime="text/html", use_container_width=True)
+st.caption("Per stampare: apri il file HTML scaricato nel browser e premi il pulsante Stampa.")
