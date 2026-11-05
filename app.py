@@ -260,7 +260,7 @@ with col_6d:
 st.markdown("---")
 
 # ---------------------------------------------------------
-# 3. FLUSSI DI CASSA (25 ANNI COMPLETI FINO AL RIGO 25)
+# 3. FLUSSI DI CASSA (25 ANNI COMPLETI FINO AL RIGO 25, SENZA INDICE)
 # ---------------------------------------------------------
 anni = list(range(1, 26))
 perdita_cumulata = [0.0] + [0.005 * (a - 1) for a in anni[1:]]
@@ -317,8 +317,8 @@ df_flussi = pd.DataFrame({
 df_flussi["Flusso Netto (€)"] = df_flussi[["Benefici Energetici (€)", "Benefici Fiscali (€)", "Noleggio (€)", "Manutenzione Annuale (€)", "Riscatto (€)"]].sum(axis=1)
 df_flussi["Cumulato (€)"] = df_flussi["Flusso Netto (€)"].cumsum()
 
-# Altezza portata a 1050px per mostrare comodamente tutte le 25 righe e il rigo 25 senza scroll interno
-st.dataframe(df_flussi.style.format({
+# Tabella intera con index nascosto e formattazione monetaria
+st.dataframe(df_flussi.style.hide(axis="index").format({
     "Benefici Energetici (€)": "€ {:.2f}",
     "Benefici Fiscali (€)": lambda x: f"€ {x:.2f}" if pd.notnull(x) else "",
     "Noleggio (€)": lambda x: f"€ {x:.2f}" if pd.notnull(x) else "",
@@ -346,7 +346,7 @@ m4.metric("Flusso Netto Cumulato a 25 Anni", f"€ {tot_netto:,.2f}")
 st.markdown("---")
 
 # ---------------------------------------------------------
-# 4. PARAMETRI NOLEGGIO OPERATIVO (POSIZIONATO IN CODA)
+# 4. PARAMETRI NOLEGGIO OPERATIVO (IN CODA)
 # ---------------------------------------------------------
 st.header("💳 Parametri Noleggio Operativo")
 col_n1, col_n2 = st.columns(2)
