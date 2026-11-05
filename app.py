@@ -145,7 +145,7 @@ regioni_db = {
     "Trentino-Alto Adige": {"irap": 0.0346, "add_reg_min": 0.0123, "add_reg_max": 0.0123},
     "Umbria": {"irap": 0.0390, "add_reg_min": 0.0123, "add_reg_max": 0.0183},
     "Valle d'Aosta": {"irap": 0.0390, "add_reg_min": 0.0123, "add_reg_max": 0.0123},
-    "Veneto": {"irap": 0.0390, "add_reg_min": 0.0123, "add_reg_max": 0.0123},
+    "Veneto": {"irap": 0.0390, "add_reg_min": 0.0123, "add_reg_max": 0.0123}
 }
 
 # ---------------------------------------------------------
@@ -264,40 +264,55 @@ with col_6d:
 st.markdown("---")
 
 # ---------------------------------------------------------
-# 3. PERDITA DI ENERGIA (25 ANNI)
+# 3. PERDITA DI ENERGIA (25 ANNI - 10 COLONNE ESATTE DA EXCEL)
 # ---------------------------------------------------------
 st.header("📉 Perdita di Energia (25 Anni)")
 
 anni = list(range(1, 26))
-fattori_degrado = [1.0 - (0.005 * (a - 1)) for a in anni]
+efficienza_residua = [1.0 if a == 1 else round(1.0 - 0.005 * (a - 1), 3) for a in anni]
+perdita_cumulata = [0.0 if a == 1 else round(0.005 * (a - 1), 3) for a in anni]
 
-prod_lorda_25 = [prod_media_annuale * f for f in fattori_degrado]
-autoconsumo_netto_25 = [p * autoconsumo_pct for p in prod_lorda_25]
-vendita_netta_25 = [p * cessione_pct for p in prod_lorda_25]
+# Calcolo perdite in kWh ed energia netta come nel foglio Excel
+perdita_auto_kwh = [0.0 if a == 1 else - (energia_autoconsumata * perdita_cumulata[i]) for i, a in enumerate(anni)]
+auto_kwh_netto = [energia_autoconsumata + perdita_auto_kwh[i] for i in range(25)]
+
+perdita_vendita_kwh = [0.0 if a == 1 else - (energia_venduta * perdita_cumulata[i]) for i, a in enumerate(anni)]
+vendita_kwh_netto = [energia_venduta + perdita_vendita_kwh[i] for i in range(25)]
+
+risparmio_auto_eur = [auto_kwh_netto[i] * costo_energia for i in range(25)]
+ricavo_vendita_eur = [vendita_kwh_netto[i] * prezzo_vendita for i in range(25)]
+totale_benefici_perdita = [risparmio_auto_eur[i] + ricavo_vendita_eur[i] for i in range(25)]
 
 df_perdita = pd.DataFrame({
     "Anno": anni,
-    "Fattore Degradazione": [f"{f*100:.1f}%" for f in fattori_degrado],
-    "Produzione Lorda (kWh)": prod_lorda_25,
-    "Autoconsumo Netto (kWh)": autoconsumo_netto_25,
-    "Energia Venduta Netta (kWh)": vendita_netta_25
+    "Efficienza Residua Stimata (%)": efficienza_residua,
+    "Perdita di Energia Cumulata (%)": perdita_cumulata,
+    "Energia Autoconsumata (Perdita in kWh)": perdita_auto_kwh,
+    "Energia Autoconsumata (kWh)": auto_kwh_netto,
+    "Energia Venduta (Perdita in kWh)": perdita_vendita_kwh,
+    "Energia Venduta (kWh)": vendita_kwh_netto,
+    "Risparmio in Autoconsumo (€)": risparmio_auto_eur,
+    "Ricavo dalla Vendita (€)": ricavo_vendita_eur,
+    "Totale Benefici Energetici per Anno (€)": totale_benefici_perdita
 })
 
 st.dataframe(df_perdita.style.format({
-    "Produzione Lorda (kWh)": "{:,.2f}",
-    "Autoconsumo Netto (kWh)": "{:,.2f}",
-    "Energia Venduta Netta (kWh)": "{:,.2f}"
+    "Efficienza Residua Stimata (%)": "{:.2%}",
+    "Perdita di Energia Cumulata (%)": "{:.2%}",
+    "Energia Autoconsumata (Perdita in kWh)": "{:,.2f}",
+    "Energia Autoconsumata (kWh)": "{:,.2f}",
+    "Energia Venduta (Perdita in kWh)": "{:,.2f}",
+    "Energia Venduta (kWh)": "{:,.2f}",
+    "Risparmio in Autoconsumo (€)": "€ {:.2f}",
+    "Ricavo dalla Vendita (€)": "€ {:.2f}",
+    "Totale Benefici Energetici per Anno (€)": "€ {:.2f}"
 }), use_container_width=True, hide_index=True)
 
 st.markdown("---")
 
 # ---------------------------------------------------------
-# 4. FLUSSI DI CASSA (25 ANNI COMPLETI, SENZA INDICE)
+# 4. FLUSSI DI CASSA (25 ANNI COMPLETI, COLLEGATI A PERDITA DI ENERGIA)
 # ---------------------------------------------------------
-risparmio_autoconsumo_eur = [kwh * costo_energia for kwh in autoconsumo_netto_25]
-ricavo_vendita_eur = [kwh * prezzo_vendita for kwh in vendita_netta_25]
-totale_benefici_energetici_25 = [r + v for r, v in zip(risparmio_autoconsumo_eur, ricavo_vendita_eur)]
-
 def calcola_coefficiente_fiscale(forma, reg, add_com):
     if forma == "Regime Forfettario":
         return 0.0
@@ -330,7 +345,7 @@ noleggio_annuale = rata_bimestrale * 6.0
 
 df_flussi = pd.DataFrame({
     "Anno": anni,
-    "Benefici Energetici (€)": totale_benefici_energetici_25,
+    "Benefici Energetici (€)": totale_benefici_perdita,
     "Benefici Fiscali (€)": [beneficio_fiscale_annuale if a <= durata_noleggio else np.nan for a in anni],
     "Noleggio (€)": [-noleggio_annuale if a <= durata_noleggio else np.nan for a in anni],
     "Manutenzione Annuale (€)": [manut_val] * 25,
@@ -352,28 +367,8 @@ st.dataframe(df_flussi.style.format({
 
 # Totali Generali
 st.markdown("### 📈 Totali Generali")
-tot_energetici = sum(totale_benefici_energetici_25)
+tot_energetici = sum(totale_benefici_perdita)
 tot_fiscali = beneficio_fiscale_annuale * durata_noleggio
 tot_noleggio = -noleggio_annuale * durata_noleggio
 tot_manutenzione = manut_val * 25
-tot_riscatto = riscatto_val
-tot_netto = tot_energetici + tot_fiscali + tot_noleggio + tot_manutenzione + tot_riscatto
-
-m1, m2, m3, m4 = st.columns(4)
-m1.metric("Totale Benefici Energetici", f"€ {tot_energetici:,.2f}")
-m2.metric("Totale Benefici Fiscali", f"€ {tot_fiscali:,.2f}")
-m3.metric("Totale Noleggio Operativo", f"€ {tot_noleggio:,.2f}")
-m4.metric("Flusso Netto Cumulato a 25 Anni", f"€ {tot_netto:,.2f}")
-
-st.markdown("---")
-
-# ---------------------------------------------------------
-# 5. PARAMETRI NOLEGGIO OPERATIVO (IN CODA)
-# ---------------------------------------------------------
-st.header("💳 Parametri Noleggio Operativo")
-col_n1, col_n2 = st.columns(2)
-with col_n1:
-    st.number_input("A2: Rata Mensile Noleggio (€)", step=10.0, key="rata_mensile")
-with col_n2:
-    st.write(f"**A4 Rata Bimestrale:** € {rata_bimestrale:.2f}")
-    st.write(f"**Noleggio Annuale (D2):** € {noleggio_annuale:.2f}")
+tot_riscat
