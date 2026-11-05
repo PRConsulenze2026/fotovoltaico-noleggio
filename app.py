@@ -6,7 +6,7 @@ st.set_page_config(page_title="Simulatore Flusso di Cassa Fotovoltaico", layout=
 
 # CSS personalizzato per:
 # 1. Colore grigio scuro e testo bianco nei campi
-# 2. Rimozione della barra di scorrimento interna ed estensione completa della tabella
+# 2. Rimozione totale delle barre di scorrimento e degli spazi vuoti sotto la tabella
 st.markdown("""
 <style>
 div.stNumberInput input, div.stTextInput input, div.stDateInput input {
@@ -24,7 +24,11 @@ input:disabled, textarea:disabled {
     border: 1px solid #3f3f3f !important;
     opacity: 1 !important;
 }
+div[data-testid="stDataFrame"] {
+    height: auto !important;
+}
 div[data-testid="stDataFrame"] > div {
+    height: auto !important;
     max-height: none !important;
     overflow: visible !important;
 }
@@ -140,218 +144,4 @@ regioni_db = {
     "Toscana": {"irap": 0.0390, "add_reg_min": 0.0142, "add_reg_max": 0.0173},
     "Trentino-Alto Adige": {"irap": 0.0346, "add_reg_min": 0.0123, "add_reg_max": 0.0123},
     "Umbria": {"irap": 0.0390, "add_reg_min": 0.0123, "add_reg_max": 0.0183},
-    "Valle d'Aosta": {"irap": 0.0390, "add_reg_min": 0.0123, "add_reg_max": 0.0123},
-    "Veneto": {"irap": 0.0390, "add_reg_min": 0.0123, "add_reg_max": 0.0123},
-}
-
-# ---------------------------------------------------------
-# 2. BENEFICI ENERGETICI (LAYOUT ESATTO A 4 COLONNE DA EXCEL)
-# ---------------------------------------------------------
-st.header("💡 Benefici Energetici")
-
-prod_impianto = st.session_state["prod_impianto"]
-durata_noleggio = st.session_state["durata_noleggio"] if st.session_state["durata_noleggio"] > 0 else 1
-autoconsumo_pct = st.session_state["autoconsumo_pct"] / 100.0
-costo_energia = st.session_state["costo_energia_pagata"]
-prezzo_vendita = st.session_state["prezzo_energia_venduta"]
-cessione_pct = st.session_state["cessione_pct"] / 100.0
-
-prod_media_annuale = prod_impianto / durata_noleggio if durata_noleggio > 0 else 0
-energia_autoconsumata = prod_media_annuale * autoconsumo_pct
-risparmio_autoconsumo = energia_autoconsumata * costo_energia
-energia_venduta = prod_media_annuale * cessione_pct
-ricavo_vendita = energia_venduta * prezzo_vendita
-totale_benefici = risparmio_autoconsumo + ricavo_vendita
-
-# --- Blocco 1 ---
-col_1a, col_1b, col_1c, col_1d = st.columns([3, 2, 2, 2])
-with col_1a:
-    st.markdown("**Produzione Media Annuale**")
-with col_1b:
-    st.markdown("*Produzione Impianto/kWh*")
-    st.number_input("B2", step=500.0, key="prod_impianto", label_visibility="collapsed")
-with col_1c:
-    st.markdown("*Anni Durata Noleggio*")
-    st.number_input("C2", step=1, key="durata_noleggio", label_visibility="collapsed")
-with col_1d:
-    st.markdown("*kWh*")
-    st.text_input("D1", value=f"{prod_media_annuale:,.2f}", disabled=True, label_visibility="collapsed")
-
-st.markdown("---")
-
-# --- Blocco 2 ---
-col_2a, col_2b, col_2c, col_2d = st.columns([3, 2, 2, 2])
-with col_2a:
-    st.markdown("**Energia Autoconsumata**")
-with col_2b:
-    st.markdown("*Produzione Media Annuale*")
-    st.text_input("D2", value=f"{prod_media_annuale:,.2f}", disabled=True, label_visibility="collapsed")
-with col_2c:
-    st.markdown("*Autoconsumo/Produzione in %*")
-    st.number_input("C4", step=5.0, key="autoconsumo_pct", label_visibility="collapsed")
-with col_2d:
-    st.markdown("*kWh*")
-    st.text_input("D3", value=f"{energia_autoconsumata:,.2f}", disabled=True, label_visibility="collapsed")
-
-st.markdown("---")
-
-# --- Blocco 3 ---
-col_3a, col_3b, col_3c, col_3d = st.columns([3, 2, 2, 2])
-with col_3a:
-    st.markdown("**Risparmio in Autoconsumo**")
-with col_3b:
-    st.markdown("*Energia Autoconsumata*")
-    st.text_input("D4", value=f"{energia_autoconsumata:,.2f}", disabled=True, label_visibility="collapsed")
-with col_3c:
-    st.markdown("*Costo Energia Attualmente Pagata in kWh*")
-    st.number_input("C6", step=0.00001, format="%.5f", key="costo_energia_pagata", label_visibility="collapsed")
-with col_3d:
-    st.markdown("*€.*")
-    st.text_input("D5", value=f"€ {risparmio_autoconsumo:,.2f}", disabled=True, label_visibility="collapsed")
-
-st.markdown("---")
-
-# --- Blocco 4 ---
-col_4a, col_4b, col_4c, col_4d = st.columns([3, 2, 2, 2])
-with col_4a:
-    st.markdown("**Energia Venduta**")
-with col_4b:
-    st.markdown("*Produzione Media Annuale*")
-    st.text_input("D6", value=f"{prod_media_annuale:,.2f}", disabled=True, label_visibility="collapsed")
-with col_4c:
-    st.markdown("*Cessione EE/Produzione di Energia in %*")
-    st.number_input("C8", step=1.0, format="%.2f", key="cessione_pct", label_visibility="collapsed")
-with col_4d:
-    st.markdown("*kWh*")
-    st.text_input("D7", value=f"{energia_venduta:,.2f}", disabled=True, label_visibility="collapsed")
-
-st.markdown("---")
-
-# --- Blocco 5 ---
-col_5a, col_5b, col_5c, col_5d = st.columns([3, 2, 2, 2])
-with col_5a:
-    st.markdown("**Ricavo dalla Vendita**")
-with col_5b:
-    st.markdown("*Energia Venduta*")
-    st.text_input("D8", value=f"{energia_venduta:,.2f}", disabled=True, label_visibility="collapsed")
-with col_5c:
-    st.markdown("*Prezzo Energia Venduta in kWh*")
-    st.number_input("C10", step=0.00001, format="%.5f", key="prezzo_energia_venduta", label_visibility="collapsed")
-with col_5d:
-    st.markdown("*€.*")
-    st.text_input("D9", value=f"€ {ricavo_vendita:,.2f}", disabled=True, label_visibility="collapsed")
-
-st.markdown("---")
-
-# --- Blocco 6 ---
-col_6a, col_6b, col_6c, col_6d = st.columns([3, 2, 2, 2])
-with col_6a:
-    st.markdown("**Totale Benefici Energetici per Anno**")
-with col_6b:
-    st.markdown("*Risparmio in Autoconsumo*")
-    st.text_input("D10", value=f"€ {risparmio_autoconsumo:,.2f}", disabled=True, label_visibility="collapsed")
-with col_6c:
-    st.markdown("*Ricavo dalla Vendita*")
-    st.text_input("D11", value=f"€ {ricavo_vendita:,.2f}", disabled=True, label_visibility="collapsed")
-with col_6d:
-    st.markdown("*€. (Totale)*")
-    st.text_input("D12", value=f"€ {totale_benefici:,.2f}", disabled=True, label_visibility="collapsed")
-
-st.markdown("---")
-
-# ---------------------------------------------------------
-# 3. FLUSSI DI CASSA (25 ANNI, SENZA INDICE E SENZA RIGHE VUOTE)
-# ---------------------------------------------------------
-anni = list(range(1, 26))
-perdita_cumulata = [0.0] + [0.005 * (a - 1) for a in anni[1:]]
-
-perdita_auto_kwh = [- (energia_autoconsumata * p) if i > 0 else 0 for i, p in enumerate(perdita_cumulata)]
-auto_kwh_netto = [energia_autoconsumata + p for p in perdita_auto_kwh]
-
-perdita_vendita_kwh = [- (energia_venduta * p) if i > 0 else 0 for i, p in enumerate(perdita_cumulata)]
-vendita_kwh_netto = [energia_venduta + p for p in perdita_vendita_kwh]
-
-risparmio_autoconsumo_eur = [kwh * costo_energia for kwh in auto_kwh_netto]
-ricavo_vendita_eur = [kwh * prezzo_vendita for kwh in vendita_kwh_netto]
-totale_benefici_energetici_25 = [r + v for r, v in zip(risparmio_autoconsumo_eur, ricavo_vendita_eur)]
-
-def calcola_coefficiente_fiscale(forma, reg, add_com):
-    if forma == "Regime Forfettario":
-        return 0.0
-    info_reg = regioni_db[reg]
-    irap = info_reg["irap"]
-    if forma == "Società di Capitali (S.r.l., S.p.A.)":
-        return 0.24 + irap
-    else:
-        return 0.35 + irap + info_reg["add_reg_min"] + add_com
-
-coeff_fiscale = calcola_coefficiente_fiscale(st.session_state["forma_giuridica"], st.session_state["regione"], st.session_state["add_comunale"] / 100.0)
-
-rata_mensile_val = st.session_state["rata_mensile"]
-beneficio_fiscale_mensile = rata_mensile_val * coeff_fiscale
-beneficio_fiscale_annuale = np.ceil(beneficio_fiscale_mensile) * 12.0
-
-st.subheader("📊 Flussi di Cassa")
-
-col_opt1, col_opt2 = st.columns(2)
-with col_opt1:
-    st.number_input("Manutenzione Annuale (€)", step=50.0, key="manutenzione_default")
-with col_opt2:
-    st.number_input("Riscatto Finale (Anno 7) (€)", step=50.0, key="riscatto_default")
-
-manut_val = st.session_state["manutenzione_default"]
-riscatto_val = st.session_state["riscatto_default"]
-
-rata_bimestrale = rata_mensile_val * 2.0
-noleggio_annuale = rata_bimestrale * 6.0
-
-df_flussi = pd.DataFrame({
-    "Anno": anni,
-    "Benefici Energetici (€)": totale_benefici_energetici_25,
-    "Benefici Fiscali (€)": [beneficio_fiscale_annuale if a <= durata_noleggio else np.nan for a in anni],
-    "Noleggio (€)": [-noleggio_annuale if a <= durata_noleggio else np.nan for a in anni],
-    "Manutenzione Annuale (€)": [manut_val] * 25,
-    "Riscatto (€)": [riscatto_val if a == durata_noleggio else np.nan for a in anni]
-})
-
-df_flussi["Flusso Netto (€)"] = df_flussi[["Benefici Energetici (€)", "Benefici Fiscali (€)", "Noleggio (€)", "Manutenzione Annuale (€)", "Riscatto (€)"]].sum(axis=1)
-df_flussi["Cumulato (€)"] = df_flussi["Flusso Netto (€)"].cumsum()
-
-# Tabella intera con hide_index=True per rimuovere la colonna numerica e altezza ottimizzata per evitare righe vuote
-st.dataframe(df_flussi.style.format({
-    "Benefici Energetici (€)": "€ {:.2f}",
-    "Benefici Fiscali (€)": lambda x: f"€ {x:.2f}" if pd.notnull(x) else "",
-    "Noleggio (€)": lambda x: f"€ {x:.2f}" if pd.notnull(x) else "",
-    "Manutenzione Annuale (€)": "€ {:.2f}",
-    "Riscatto (€)": lambda x: f"€ {x:.2f}" if pd.notnull(x) else "",
-    "Flusso Netto (€)": "€ {:.2f}",
-    "Cumulato (€)": "€ {:.2f}"
-}), use_container_width=True, hide_index=True, height=950)
-
-# Totali Generali
-st.markdown("### 📈 Totali Generali")
-tot_energetici = sum(totale_benefici_energetici_25)
-tot_fiscali = beneficio_fiscale_annuale * durata_noleggio
-tot_noleggio = -noleggio_annuale * durata_noleggio
-tot_manutenzione = manut_val * 25
-tot_riscatto = riscatto_val
-tot_netto = tot_energetici + tot_fiscali + tot_noleggio + tot_manutenzione + tot_riscatto
-
-m1, m2, m3, m4 = st.columns(4)
-m1.metric("Totale Benefici Energetici", f"€ {tot_energetici:,.2f}")
-m2.metric("Totale Benefici Fiscali", f"€ {tot_fiscali:,.2f}")
-m3.metric("Totale Noleggio Operativo", f"€ {tot_noleggio:,.2f}")
-m4.metric("Flusso Netto Cumulato a 25 Anni", f"€ {tot_netto:,.2f}")
-
-st.markdown("---")
-
-# ---------------------------------------------------------
-# 4. PARAMETRI NOLEGGIO OPERATIVO (IN CODA)
-# ---------------------------------------------------------
-st.header("💳 Parametri Noleggio Operativo")
-col_n1, col_n2 = st.columns(2)
-with col_n1:
-    st.number_input("A2: Rata Mensile Noleggio (€)", step=10.0, key="rata_mensile")
-with col_n2:
-    st.write(f"**A4 Rata Bimestrale:** € {rata_bimestrale:.2f}")
-    st.write(f"**Noleggio Annuale (D2):** € {noleggio_annuale:.2f}")
+    "Valle d'Aosta": {"irap": 0.0390, "add_reg_min": 0.0123, "add_
