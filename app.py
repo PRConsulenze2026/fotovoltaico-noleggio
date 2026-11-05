@@ -255,11 +255,56 @@ with panoramica:
     st.caption("Il punto di pareggio è calcolato sul flusso cumulato del modello, senza attualizzazione finanziaria.")
 
 with energia:
-    st.subheader("Benefici energetici")
-    e1, e2, e3 = st.columns(3)
-    e1.metric("Energia autoconsumata", f"{numero(energia_autoconsumata)} kWh/anno")
-    e2.metric("Energia ceduta", f"{numero(energia_venduta)} kWh/anno")
-    e3.metric("Benefici complessivi", euro(totale_benefici))
+    st.subheader("Benefici Energetici")
+    # Riproduzione delle sei sezioni a quattro colonne del foglio Excel
+    # "Benefici Energetici": titolo del risultato, due basi di calcolo e valore.
+    sezioni_benefici = [
+        (
+            ["", "Produzione Impianto/kWh", "Anni Durata Noleggio", "kWh"],
+            ["Produzione Media Annuale", numero(prod_impianto), str(durata_noleggio), numero(prod_media_annuale)],
+        ),
+        (
+            ["", "Produzione Media Annuale", "Autoconsumo/Produzione di Energia in %", "kWh"],
+            ["Energia Autoconsumata", numero(prod_media_annuale), numero(autoconsumo_pct * 100, 2) + "%", numero(energia_autoconsumata)],
+        ),
+        (
+            ["", "Energia Autoconsumata", "Costo Energia Attualmente Pagata in kWh", "€."],
+            ["Risparmio in Autoconsumo", numero(energia_autoconsumata), euro(costo_energia), euro(risparmio_autoconsumo)],
+        ),
+        (
+            ["", "Produzione Media Annuale", "Cessione EE/Produzione di Energia in %", "kWh"],
+            ["Energia Venduta", numero(prod_media_annuale), numero(cessione_pct * 100, 2) + "%", numero(energia_venduta)],
+        ),
+        (
+            ["", "Energia Venduta", "Prezzo Energia Venduta in kWh", "€."],
+            ["Ricavo dalla Vendita", numero(energia_venduta), euro(prezzo_vendita), euro(ricavo_vendita)],
+        ),
+        (
+            ["", "Risparmio in Autoconsumo", "Ricavo dalla Vendita", "€."],
+            ["Totale Benefici Energetici per Anno", euro(risparmio_autoconsumo), euro(ricavo_vendita), euro(totale_benefici)],
+        ),
+    ]
+    righe_benefici = []
+    for intestazioni, valori in sezioni_benefici:
+        righe_benefici.append("<tr class='eureka-benefici-head'>" + "".join(
+            f"<th>{html_escape(t)}</th>" for t in intestazioni
+        ) + "</tr>")
+        righe_benefici.append("<tr class='eureka-benefici-val'>" + "".join(
+            f"<td>{html_escape(str(v))}</td>" for v in valori
+        ) + "</tr>")
+    st.markdown("""
+    <style>
+    table.eureka-benefici {width:100%; border-collapse:collapse; table-layout:fixed; color:#f6f7f9; font-size:clamp(10px,0.9vw,13px);}
+    .eureka-benefici th,.eureka-benefici td {border:1px solid #526172; padding:10px 8px; overflow-wrap:anywhere; vertical-align:middle;}
+    .eureka-benefici th {background:#354352; color:white; text-align:center; line-height:1.35; font-weight:700;}
+    .eureka-benefici td {background:#1b2935; text-align:right;}
+    .eureka-benefici td:first-child {text-align:left; font-weight:700;}
+    .eureka-benefici th:first-child,.eureka-benefici td:first-child {width:29%;}
+    .eureka-benefici th:nth-child(2),.eureka-benefici td:nth-child(2) {width:22%;}
+    .eureka-benefici th:nth-child(3),.eureka-benefici td:nth-child(3) {width:34%;}
+    .eureka-benefici th:nth-child(4),.eureka-benefici td:nth-child(4) {width:15%;}
+    </style>
+    <table class="eureka-benefici"><tbody>""" + "".join(righe_benefici) + "</tbody></table>", unsafe_allow_html=True)
     st.markdown("#### Perdite di Energia (25 anni)")
     intestazioni_energia_excel = {
         "Anno": "Anno",
