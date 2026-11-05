@@ -264,7 +264,7 @@ with col_6d:
 st.markdown("---")
 
 # ---------------------------------------------------------
-# 3. FLUSSI DI CASSA (25 ANNI, SENZA INDICE E SENZA RIGHE VUOTE)
+# 3. FLUSSI DI CASSA (25 ANNI COMPLETI, SENZA INDICE)
 # ---------------------------------------------------------
 anni = list(range(1, 26))
 perdita_cumulata = [0.0] + [0.005 * (a - 1) for a in anni[1:]]
@@ -321,7 +321,6 @@ df_flussi = pd.DataFrame({
 df_flussi["Flusso Netto (€)"] = df_flussi[["Benefici Energetici (€)", "Benefici Fiscali (€)", "Noleggio (€)", "Manutenzione Annuale (€)", "Riscatto (€)"]].sum(axis=1)
 df_flussi["Cumulato (€)"] = df_flussi["Flusso Netto (€)"].cumsum()
 
-# Tabella intera con hide_index=True e senza altezza fissa
 st.dataframe(df_flussi.style.format({
     "Benefici Energetici (€)": "€ {:.2f}",
     "Benefici Fiscali (€)": lambda x: f"€ {x:.2f}" if pd.notnull(x) else "",
