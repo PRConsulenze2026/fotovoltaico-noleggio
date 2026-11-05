@@ -5,8 +5,8 @@ import numpy as np
 st.set_page_config(page_title="Simulatore Flusso di Cassa Fotovoltaico", layout="wide")
 
 # CSS personalizzato per:
-# 1. Colore grigio scuro e testo bianco nei campi
-# 2. Ottimizzazione della tabella per mostrare interamente tutte le 25 righe senza scroll interno
+# 1. Colore grigio scuro e testo bianco nei campi di input/output
+# 2. Rimozione totale delle barre di scorrimento e degli spazi vuoti sotto le tabelle
 st.markdown("""
 <style>
 div.stNumberInput input, div.stTextInput input, div.stDateInput input {
@@ -24,7 +24,11 @@ input:disabled, textarea:disabled {
     border: 1px solid #3f3f3f !important;
     opacity: 1 !important;
 }
+div[data-testid="stDataFrame"] {
+    height: auto !important;
+}
 div[data-testid="stDataFrame"] > div {
+    height: auto !important;
     max-height: none !important;
     overflow: visible !important;
 }
@@ -247,111 +251,4 @@ st.markdown("---")
 col_6a, col_6b, col_6c, col_6d = st.columns([3, 2, 2, 2])
 with col_6a:
     st.markdown("**Totale Benefici Energetici per Anno**")
-with col_6b:
-    st.markdown("*Risparmio in Autoconsumo*")
-    st.text_input("D10", value=f"€ {risparmio_autoconsumo:,.2f}", disabled=True, label_visibility="collapsed")
-with col_6c:
-    st.markdown("*Ricavo dalla Vendita*")
-    st.text_input("D11", value=f"€ {ricavo_vendita:,.2f}", disabled=True, label_visibility="collapsed")
-with col_6d:
-    st.markdown("*€. (Totale)*")
-    st.text_input("D12", value=f"€ {totale_benefici:,.2f}", disabled=True, label_visibility="collapsed")
-
-st.markdown("---")
-
-# ---------------------------------------------------------
-# 3. FLUSSI DI CASSA (25 ANNI COMPLETI, SENZA INDICE E CON ALTEZZA FISSA ADEGUATA)
-# ---------------------------------------------------------
-anni = list(range(1, 26))
-perdita_cumulata = [0.0] + [0.005 * (a - 1) for a in anni[1:]]
-
-perdita_auto_kwh = [- (energia_autoconsumata * p) if i > 0 else 0 for i, p in enumerate(perdita_cumulata)]
-auto_kwh_netto = [energia_autoconsumata + p for p in perdita_auto_kwh]
-
-perdita_vendita_kwh = [- (energia_venduta * p) if i > 0 else 0 for i, p in enumerate(perdita_cumulata)]
-vendita_kwh_netto = [energia_venduta + p for p in perdita_vendita_kwh]
-
-risparmio_autoconsumo_eur = [kwh * costo_energia for kwh in auto_kwh_netto]
-ricavo_vendita_eur = [kwh * prezzo_vendita for kwh in vendita_kwh_netto]
-totale_benefici_energetici_25 = [r + v for r, v in zip(risparmio_autoconsumo_eur, ricavo_vendita_eur)]
-
-def calcola_coefficiente_fiscale(forma, reg, add_com):
-    if forma == "Regime Forfettario":
-        return 0.0
-    info_reg = regioni_db[reg]
-    irap = info_reg["irap"]
-    if forma == "Società di Capitali (S.r.l., S.p.A.)":
-        return 0.24 + irap
-    else:
-        return 0.35 + irap + info_reg["add_reg_min"] + add_com
-
-coeff_fiscale = calcola_coefficiente_fiscale(st.session_state["forma_giuridica"], st.session_state["regione"], st.session_state["add_comunale"] / 100.0)
-
-rata_mensile_val = st.session_state["rata_mensile"]
-beneficio_fiscale_mensile = rata_mensile_val * coeff_fiscale
-beneficio_fiscale_annuale = np.ceil(beneficio_fiscale_mensile) * 12.0
-
-st.subheader("📊 Flussi di Cassa")
-
-col_opt1, col_opt2 = st.columns(2)
-with col_opt1:
-    st.number_input("Manutenzione Annuale (€)", step=50.0, key="manutenzione_default")
-with col_opt2:
-    st.number_input("Riscatto Finale (Anno 7) (€)", step=50.0, key="riscatto_default")
-
-manut_val = st.session_state["manutenzione_default"]
-riscatto_val = st.session_state["riscatto_default"]
-
-rata_bimestrale = rata_mensile_val * 2.0
-noleggio_annuale = rata_bimestrale * 6.0
-
-df_flussi = pd.DataFrame({
-    "Anno": anni,
-    "Benefici Energetici (€)": totale_benefici_energetici_25,
-    "Benefici Fiscali (€)": [beneficio_fiscale_annuale if a <= durata_noleggio else np.nan for a in anni],
-    "Noleggio (€)": [-noleggio_annuale if a <= durata_noleggio else np.nan for a in anni],
-    "Manutenzione Annuale (€)": [manut_val] * 25,
-    "Riscatto (€)": [riscatto_val if a == durata_noleggio else np.nan for a in anni]
-})
-
-df_flussi["Flusso Netto (€)"] = df_flussi[["Benefici Energetici (€)", "Benefici Fiscali (€)", "Noleggio (€)", "Manutenzione Annuale (€)", "Riscatto (€)"]].sum(axis=1)
-df_flussi["Cumulato (€)"] = df_flussi["Flusso Netto (€)"].cumsum()
-
-# Impostato height=925 per mostrare perfettamente tutte le 25 righe senza scroll interno né spazi vuoti
-st.dataframe(df_flussi.style.format({
-    "Benefici Energetici (€)": "€ {:.2f}",
-    "Benefici Fiscali (€)": lambda x: f"€ {x:.2f}" if pd.notnull(x) else "",
-    "Noleggio (€)": lambda x: f"€ {x:.2f}" if pd.notnull(x) else "",
-    "Manutenzione Annuale (€)": "€ {:.2f}",
-    "Riscatto (€)": lambda x: f"€ {x:.2f}" if pd.notnull(x) else "",
-    "Flusso Netto (€)": "€ {:.2f}",
-    "Cumulato (€)": "€ {:.2f}"
-}), use_container_width=True, hide_index=True, height=925)
-
-# Totali Generali
-st.markdown("### 📈 Totali Generali")
-tot_energetici = sum(totale_benefici_energetici_25)
-tot_fiscali = beneficio_fiscale_annuale * durata_noleggio
-tot_noleggio = -noleggio_annuale * durata_noleggio
-tot_manutenzione = manut_val * 25
-tot_riscatto = riscatto_val
-tot_netto = tot_energetici + tot_fiscali + tot_noleggio + tot_manutenzione + tot_riscatto
-
-m1, m2, m3, m4 = st.columns(4)
-m1.metric("Totale Benefici Energetici", f"€ {tot_energetici:,.2f}")
-m2.metric("Totale Benefici Fiscali", f"€ {tot_fiscali:,.2f}")
-m3.metric("Totale Noleggio Operativo", f"€ {tot_noleggio:,.2f}")
-m4.metric("Flusso Netto Cumulato a 25 Anni", f"€ {tot_netto:,.2f}")
-
-st.markdown("---")
-
-# ---------------------------------------------------------
-# 4. PARAMETRI NOLEGGIO OPERATIVO (IN CODA)
-# ---------------------------------------------------------
-st.header("💳 Parametri Noleggio Operativo")
-col_n1, col_n2 = st.columns(2)
-with col_n1:
-    st.number_input("A2: Rata Mensile Noleggio (€)", step=10.0, key="rata_mensile")
-with col_n2:
-    st.write(f"**A4 Rata Bimestrale:** € {rata_bimestrale:.2f}")
-    st.write(f"**Noleggio Annuale (D2):** € {noleggio_annuale:.2f}")
+with
