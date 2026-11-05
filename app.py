@@ -273,14 +273,88 @@ with energia:
         "Ricavo vendita (€)": "Ricavo dalla Vendita (€)",
         "Benefici energetici (€)": "Totale Benefici Energetici per Anno (€)",
     }
-    st.dataframe(
-        df_perdita.rename(columns=intestazioni_energia_excel).style.format({
-            "Efficienza Residua Stimata (%)": "{:.2%}",
-            "Perdita di Energia Cumulata (%)": "{:.2%}",
-            **{intestazioni_energia_excel[c]: "{:,.2f}" for c in df_perdita.columns if c != "Anno" and "(%)" not in c},
-        }),
-        use_container_width=True, hide_index=True, height=900,
-    )
+    # Tabella HTML a larghezza piena: intestazioni multilinea e 25 righe visibili.
+    # A differenza di st.dataframe, le intestazioni possono andare a capo.
+    intestazioni_multiriga = [
+        "Anno",
+        "Efficienza Residua<br>Stimata (%)",
+        "Perdita di Energia<br>Cumulata (%)",
+        "Energia Autoconsumata<br>(Perdita in kWh)",
+        "Energia Autoconsumata<br>(kWh)",
+        "Energia Venduta<br>(Perdita in kWh)",
+        "Energia Venduta<br>(kWh)",
+        "Risparmio in<br>Autoconsumo (€)",
+        "Ricavo dalla<br>Vendita (€)",
+        "Totale Benefici Energetici<br>per Anno (€)",
+    ]
+
+    def _cella_energia(valore, nome_colonna):
+        if pd.isna(valore):
+            return "—"
+        if nome_colonna == "Anno":
+            return str(int(valore))
+        if "(%)" in nome_colonna:
+            return numero(float(valore) * 100, 2) + "%"
+        return numero(float(valore), 2)
+
+    righe_energia = []
+    for _, riga in df_perdita.iterrows():
+        celle = "".join(
+            f"<td>{_cella_energia(riga[colonna], colonna)}</td>"
+            for colonna in df_perdita.columns
+        )
+        righe_energia.append(f"<tr>{celle}</tr>")
+
+    intestazioni_html = "".join(f"<th scope='col'>{titolo}</th>" for titolo in intestazioni_multiriga)
+    tabella_energia_html = f"""
+    <style>
+      .eureka-energia {{
+        width:100%; table-layout:fixed; border-collapse:collapse;
+        color:#f6f7f9; font-size:clamp(9px, 0.75vw, 12px);
+        font-variant-numeric:tabular-nums;
+      }}
+      .eureka-energia th {{
+        background:#354352; color:#fff; font-weight:700;
+        white-space:normal; overflow-wrap:anywhere; word-break:normal;
+        line-height:1.35; height:88px; padding:8px 3px;
+        text-align:center; vertical-align:middle;
+        border:1px solid #718092;
+      }}
+      .eureka-energia td {{
+        padding:7px 3px; text-align:right; white-space:nowrap;
+        border:1px solid #465363; overflow:hidden;
+      }}
+      .eureka-energia th:first-child, .eureka-energia td:first-child {{
+        width:4.3%; text-align:center;
+      }}
+      .eureka-energia th:nth-child(2), .eureka-energia th:nth-child(3) {{
+        width:9%;
+      }}
+      .eureka-energia th:nth-child(4), .eureka-energia th:nth-child(6) {{
+        width:11.5%;
+      }}
+      .eureka-energia th:nth-child(5), .eureka-energia th:nth-child(7) {{
+        width:10%;
+      }}
+      .eureka-energia th:nth-child(8), .eureka-energia th:nth-child(9) {{
+        width:10.5%;
+      }}
+      .eureka-energia th:nth-child(10) {{ width:13.7%; }}
+      .eureka-energia tbody tr:nth-child(odd) {{ background:#1b2935; }}
+      .eureka-energia tbody tr:nth-child(even) {{ background:#253442; }}
+      .eureka-energia tbody tr:hover {{ background:#364a5d; }}
+      @media (max-width:900px) {{
+        .eureka-energia {{ font-size:9px; }}
+        .eureka-energia th {{ padding:6px 2px; }}
+        .eureka-energia td {{ padding:6px 2px; }}
+      }}
+    </style>
+    <table class="eureka-energia" aria-label="Perdite di Energia, 25 anni">
+      <thead><tr>{intestazioni_html}</tr></thead>
+      <tbody>{''.join(righe_energia)}</tbody>
+    </table>
+    """
+    st.markdown(tabella_energia_html, unsafe_allow_html=True)
     st.download_button("Esporta Perdite di Energia (CSV)",
         df_perdita.rename(columns=intestazioni_energia_excel).to_csv(index=False, sep=";", decimal=",").encode("utf-8-sig"),
         file_name="Eureka_Perdite_di_Energia.csv", mime="text/csv")
