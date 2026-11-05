@@ -260,7 +260,11 @@ with st.container(border=False):
     with hero_dx:
         logo_col, nome_col = st.columns([1, 3], gap="small", vertical_alignment="center")
         with logo_col:
-            st.image(str(Path(__file__).with_name("logo_eureka.png")), width=64)
+            percorso_logo = Path(__file__).with_name("logo_eureka.png")
+            if percorso_logo.is_file():
+                st.image(str(percorso_logo), width=64)
+            else:
+                st.markdown("☀️")
         with nome_col:
             st.markdown(
                 '<div style="color:#fff;font-weight:750;font-size:15px;line-height:1.15;">'
