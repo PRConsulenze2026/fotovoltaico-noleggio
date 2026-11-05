@@ -260,17 +260,29 @@ with energia:
     e1.metric("Energia autoconsumata", f"{numero(energia_autoconsumata)} kWh/anno")
     e2.metric("Energia ceduta", f"{numero(energia_venduta)} kWh/anno")
     e3.metric("Benefici complessivi", euro(totale_benefici))
-    st.markdown("#### Perdite di Energia · prospetto completo (25 anni)")
-    st.caption("10 colonne come nel foglio Excel 'Perdite di Energia'. Scorri orizzontalmente per vedere tutte le voci.")
+    st.markdown("#### Perdite di Energia (25 anni)")
+    intestazioni_energia_excel = {
+        "Anno": "Anno",
+        "Efficienza residua (%)": "Efficienza Residua Stimata (%)",
+        "Perdita cumulata (%)": "Perdita di Energia Cumulata (%)",
+        "Autoconsumo perso (kWh)": "Energia Autoconsumata (Perdita in kWh)",
+        "Autoconsumo netto (kWh)": "Energia Autoconsumata (kWh)",
+        "Energia ceduta persa (kWh)": "Energia Venduta (Perdita in kWh)",
+        "Energia ceduta netta (kWh)": "Energia Venduta (kWh)",
+        "Risparmio autoconsumo (€)": "Risparmio in Autoconsumo (€)",
+        "Ricavo vendita (€)": "Ricavo dalla Vendita (€)",
+        "Benefici energetici (€)": "Totale Benefici Energetici per Anno (€)",
+    }
     st.dataframe(
-        df_perdita.style.format({
-            "Efficienza residua (%)": "{:.2%}",
-            "Perdita cumulata (%)": "{:.2%}",
-            **{c: "{:,.2f}" for c in df_perdita.columns if c != "Anno" and "(%)" not in c},
-        }), use_container_width=True, hide_index=True, height=900,
+        df_perdita.rename(columns=intestazioni_energia_excel).style.format({
+            "Efficienza Residua Stimata (%)": "{:.2%}",
+            "Perdita di Energia Cumulata (%)": "{:.2%}",
+            **{intestazioni_energia_excel[c]: "{:,.2f}" for c in df_perdita.columns if c != "Anno" and "(%)" not in c},
+        }),
+        use_container_width=True, hide_index=True, height=900,
     )
     st.download_button("Esporta Perdite di Energia (CSV)",
-        df_perdita.to_csv(index=False, sep=";", decimal=",").encode("utf-8-sig"),
+        df_perdita.rename(columns=intestazioni_energia_excel).to_csv(index=False, sep=";", decimal=",").encode("utf-8-sig"),
         file_name="Eureka_Perdite_di_Energia.csv", mime="text/csv")
 
 with cassa:
