@@ -233,6 +233,24 @@ with st.container(border=True):
             unsafe_allow_html=True,
         )
     with hero_dx:
+        # Il logo sostituisce le due diciture aziendali quando è disponibile.
+        logo_intestazione = next(
+            (p for p in (
+                Path(__file__).with_name("logo_eureka.png"),
+                Path(__file__).with_name("logo_eureka.gif"),
+            ) if p.is_file()),
+            None,
+        )
+        if logo_intestazione:
+            st.image(str(logo_intestazione), width=160)
+        else:
+            st.markdown(
+                '<div style="color:#fff;font-weight:750;font-size:15px;line-height:1.15;">'
+                'EUREKA SRL</div>'
+                '<div style="color:#d9e0e8;font-size:11px;letter-spacing:.06em;">'
+                'SOCIETÀ BENEFIT</div>',
+                unsafe_allow_html=True,
+            )
         st.text_input("Referente Commerciale", key="referente_commerciale", placeholder="Inserisci il referente")
 
 # KPI sintetici
