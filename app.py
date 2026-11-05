@@ -400,7 +400,7 @@ else:
     st.info("Compila i dati dell'offerta nella scheda Inserimento Dati per personalizzare la simulazione.")
 
 # Schede di navigazione
-inserimento, dettagli, energia, noleggio, cassa, tabelle_aliquote, documenti = st.tabs(["📝 Inserimento Dati", "📄 Dati offerta", "⚡ Analisi energetica", "💶 Noleggio", "📊 Flussi di cassa", "📋 Tabelle Aliquote", "💾 📄 🖨️ Archivio e documenti"])
+inserimento, dettagli, energia, noleggio, cassa, tabelle_aliquote, archivio, documenti = st.tabs(["📝 Inserimento Dati", "📄 Dati offerta", "⚡ Analisi energetica", "💶 Noleggio", "📊 Flussi di cassa", "📋 Tabelle Aliquote", "💾 Archivio Simulazioni", "📄 🖨️ PDF e Stampa"])
 
 with inserimento:
     st.subheader("Inserimento Dati")
@@ -804,48 +804,6 @@ def genera_pdf():
     doc.build(story, onFirstPage=numero_pagina, onLaterPages=numero_pagina)
     return buffer.getvalue()
 
-def genera_html_stampa():
-    en, ca = _tabelle_allegato()
-    def tabella(rows):
-        return "<table><thead><tr>" + "".join(f"<th>{_safe(x)}</th>" for x in rows[0]) + "</tr></thead><tbody>" + "".join(
-            "<tr>" + "".join(f"<td>{_safe(x)}</td>" for x in row) + "</tr>" for row in rows[1:]
-        ) + "</tbody></table>"
-    import base64
-    img = ""
-    if logo_file is not None:
-        img = '<img class="logo" src="data:image/png;base64,' + base64.b64encode(logo_file.read_bytes()).decode() + '">'
-    dati = "".join(f"<p><b>{_safe(k)}:</b> {_safe(v)}</p>" for k,v in _dati_allegato())
-    return f"""<!doctype html><html lang="it"><head><meta charset="utf-8">
-    <title>Eureka · Allegato al business plan</title>
-    <style>
-    body{{font-family:Arial,sans-serif;color:#000;margin:22px;}}
-    .logo{{max-width:190px;max-height:85px;object-fit:contain;}}
-    h1{{font-size:22px;margin:6px 0 0;}} h2{{font-size:17px;margin-top:28px;}}
-    .sub{{font-size:12px;margin:3px 0 8px;}} .dati p{{margin:3px 0;font-size:12px;}}
-    table{{width:100%;border-collapse:collapse;font-size:10px;table-layout:fixed;}}
-    th{{background:#000;color:#fff;}} th,td{{border:1px solid #aaa;padding:5px;overflow-wrap:anywhere;}}
-    tbody tr:nth-child(even){{background:#f0f0f0;}}
-    td:not(:first-child){{text-align:right;}}
-    .print{{background:#111;color:white;padding:10px 18px;border:0;cursor:pointer;}}
-    .page-break{{break-before:page;page-break-before:always;}}
-    .print-footer{{display:none;}}
-    @media print{{
-      .print-footer{{display:block;position:fixed;bottom:0;right:0;font-size:10px;}}
-      .print-footer::after{{content:"Pagina " counter(page);}}
-    }}
-    thead{{display:table-header-group;}} tr{{break-inside:avoid;page-break-inside:avoid;}}
-    @media print{{.print{{display:none}} @page{{size:A3 landscape;margin:12mm}} body{{margin:0}}}}
-    </style></head><body>
-    <button class="print" onclick="window.print()">Stampa</button>
-    <div class="print-footer"></div>
-    {img}<h1>EUREKA SRL</h1><div class="sub">SOCIETÀ BENEFIT · RISPARMIO ENERGETICO</div>
-    <div class="sub">Via Kufstein, 1 · 38121 Trento (TN) · P.IVA 02326350226</div>
-    <h2>Allegato preliminare al business plan</h2><div class="dati">{dati}</div>
-    <h2>Perdite di Energia — 25 annualità</h2>{tabella(en)}
-    <section class="page-break"><h2>Flussi di Cassa — 25 annualità</h2>{tabella(ca)}</section>
-    <p style="font-size:10px">Simulazione indicativa. Verificare ipotesi tecniche, contrattuali e fiscali.</p>
-    </body></html>"""
-
 def nome_file_cliente():
     nome = st.session_state.get("azienda", "").strip()
     nome = unicodedata.normalize("NFKD", nome)
@@ -853,9 +811,9 @@ def nome_file_cliente():
     nome = re.sub(r"[^A-Za-z0-9_-]+", "_", nome).strip("_-")
     return (nome[:90] or "CLIENTE_SENZA_NOME")
 
-with documenti:
-    st.header("💾 📄 🖨️ Archivio e documenti")
-    st.markdown("#### 1) 💾 Salva o riapri una simulazione")
+with archivio:
+    st.header("💾 Archivio Simulazioni")
+    st.markdown("#### Salva o riapri una simulazione")
     st.caption("Salva i dati sul computer in formato JSON e riaprili in seguito, "
                "comprese le aliquote eventualmente modificate.")
     col_salva, col_apri = st.columns(2)
@@ -872,18 +830,22 @@ with documenti:
         livello, messaggio = st.session_state.pop("esito_caricamento")
         (st.success if livello == "success" else st.error)(messaggio)
 
-    st.divider()
-    st.markdown("#### 2) 📄 🖨️ Allegato al business plan · PDF e stampa")
-    st.caption("Documento preliminare con sezioni energetica ed economico-finanziaria, "
-               "senza grafici.")
+with documenti:
+    st.header("📄 🖨️ PDF e Stampa")
+    st.markdown("#### Allegato al business plan · PDF e stampa")
+    st.caption("Documento preliminare con sezioni energetica ed economico-finanziaria, senza grafici. "
+               "Il PDF contiene il logo Eureka, le tabelle complete e le pagine numerate.")
+    pdf_documento = genera_pdf()
     col_pdf, col_stampa = st.columns(2)
     with col_pdf:
-        st.download_button("📄 Scarica PDF (tabelle complete)", genera_pdf(),
+        st.download_button("📄 Scarica PDF", data=pdf_documento,
                            file_name=f"{nome_file_cliente()}_Business_Plan.pdf",
                            mime="application/pdf", use_container_width=True)
     with col_stampa:
-        st.download_button("🖨️ Scarica versione per stampa", genera_html_stampa().encode("utf-8"),
-                           file_name=f"{nome_file_cliente()}_Stampa.html",
-                           mime="text/html", use_container_width=True)
-    st.caption("Per stampare: apri il file HTML scaricato nel browser e premi Stampa. "
-               "Impaginazione A3 orizzontale per leggibilità.")
+        st.download_button("🖨️ Prepara PDF per stampa", data=pdf_documento,
+                           file_name=f"{nome_file_cliente()}_Stampa.pdf",
+                           mime="application/pdf", use_container_width=True)
+    st.info("Per stampare in modo affidabile: premi **Prepara PDF per stampa**, "
+            "apri il PDF scaricato e scegli **Stampa** (oppure premi Ctrl+P). "
+            "Formato A3 orizzontale. Il browser non apre automaticamente la stampa "
+            "dall'interno di Streamlit.")
