@@ -5,7 +5,7 @@ import numpy as np
 st.set_page_config(page_title="Simulatore Flusso di Cassa Fotovoltaico", layout="wide")
 
 # CSS personalizzato per:
-# 1. Colore grigio scuro e testo bianco nei campi di input/output
+# 1. Colore grigio scuro e testo bianco nei campi
 # 2. Rimozione totale delle barre di scorrimento e degli spazi vuoti sotto le tabelle
 st.markdown("""
 <style>
@@ -205,50 +205,4 @@ with col_3a:
     st.markdown("**Risparmio in Autoconsumo**")
 with col_3b:
     st.markdown("*Energia Autoconsumata*")
-    st.text_input("D4", value=f"{energia_autoconsumata:,.2f}", disabled=True, label_visibility="collapsed")
-with col_3c:
-    st.markdown("*Costo Energia Attualmente Pagata in kWh*")
-    st.number_input("C6", step=0.00001, format="%.5f", key="costo_energia_pagata", label_visibility="collapsed")
-with col_3d:
-    st.markdown("*€.*")
-    st.text_input("D5", value=f"€ {risparmio_autoconsumo:,.2f}", disabled=True, label_visibility="collapsed")
-
-st.markdown("---")
-
-# --- Blocco 4 ---
-col_4a, col_4b, col_4c, col_4d = st.columns([3, 2, 2, 2])
-with col_4a:
-    st.markdown("**Energia Venduta**")
-with col_4b:
-    st.markdown("*Produzione Media Annuale*")
-    st.text_input("D6", value=f"{prod_media_annuale:,.2f}", disabled=True, label_visibility="collapsed")
-with col_4c:
-    st.markdown("*Cessione EE/Produzione di Energia in %*")
-    st.number_input("C8", step=1.0, format="%.2f", key="cessione_pct", label_visibility="collapsed")
-with col_4d:
-    st.markdown("*kWh*")
-    st.text_input("D7", value=f"{energia_venduta:,.2f}", disabled=True, label_visibility="collapsed")
-
-st.markdown("---")
-
-# --- Blocco 5 ---
-col_5a, col_5b, col_5c, col_5d = st.columns([3, 2, 2, 2])
-with col_5a:
-    st.markdown("**Ricavo dalla Vendita**")
-with col_5b:
-    st.markdown("*Energia Venduta*")
-    st.text_input("D8", value=f"{energia_venduta:,.2f}", disabled=True, label_visibility="collapsed")
-with col_5c:
-    st.markdown("*Prezzo Energia Venduta in kWh*")
-    st.number_input("C10", step=0.00001, format="%.5f", key="prezzo_energia_venduta", label_visibility="collapsed")
-with col_5d:
-    st.markdown("*€.*")
-    st.text_input("D9", value=f"€ {ricavo_vendita:,.2f}", disabled=True, label_visibility="collapsed")
-
-st.markdown("---")
-
-# --- Blocco 6 ---
-col_6a, col_6b, col_6c, col_6d = st.columns([3, 2, 2, 2])
-with col_6a:
-    st.markdown("**Totale Benefici Energetici per Anno**")
-with
+    st.text_input("D
