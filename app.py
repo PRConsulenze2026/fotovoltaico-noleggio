@@ -4,6 +4,8 @@ import pandas as pd
 import numpy as np
 import time
 import json
+import re
+import unicodedata
 from datetime import date, datetime
 from html import escape as html_escape
 
@@ -398,32 +400,16 @@ else:
     st.info("Compila i dati dell'offerta nella scheda Inserimento Dati per personalizzare la simulazione.")
 
 # Schede di navigazione
-inserimento, dettagli, energia, noleggio, cassa, tabelle_aliquote = st.tabs(["📝 Inserimento Dati", "📄 Dati offerta", "⚡ Analisi energetica", "💶 Noleggio", "📊 Flussi di cassa", "📋 Tabelle Aliquote"])
+inserimento, dettagli, energia, noleggio, cassa, tabelle_aliquote, documenti = st.tabs(["📝 Inserimento Dati", "📄 Dati offerta", "⚡ Analisi energetica", "💶 Noleggio", "📊 Flussi di cassa", "📋 Tabelle Aliquote", "💾 📄 🖨️ Archivio e documenti"])
 
 with inserimento:
     st.subheader("Inserimento Dati")
     st.caption("Compila i dati del cliente, della produzione, del noleggio e i parametri fiscali.")
     st.button("🗑️  Cancella tutti i Dati", use_container_width=True, on_click=cancella_tutti_i_dati)
-    st.markdown("#### Salva o riapri una simulazione")
-    st.caption("Salva i dati sul computer in formato JSON e riaprili in seguito, "
-               "comprese le aliquote eventualmente modificate.")
-    col_salva, col_apri = st.columns(2)
-    with col_salva:
-        st.download_button("💾 Salva simulazione", data=esporta_simulazione(),
-                           file_name="Eureka_Simulazione.json",
-                           mime="application/json", use_container_width=True)
-    with col_apri:
-        st.file_uploader("Seleziona il file della simulazione (.json)",
-                         type=["json"], key="file_simulazione")
-        st.button("📂 Apri simulazione", on_click=carica_simulazione,
-                  use_container_width=True)
-    if "esito_caricamento" in st.session_state:
-        livello, messaggio = st.session_state.pop("esito_caricamento")
-        (st.success if livello == "success" else st.error)(messaggio)
     st.divider()
 
     with st.expander("1 · Anagrafica Cliente", expanded=True):
-        st.text_input("Cliente / ragione sociale", key="azienda", placeholder="Nome azienda", on_change=converti_in_maiuscolo, args=("azienda",))
+        st.text_input("Ragione Sociale", key="azienda", placeholder="Nome azienda", on_change=converti_in_maiuscolo, args=("azienda",))
         st.text_input("Indirizzo", key="indirizzo", placeholder="Via e numero civico", on_change=converti_in_maiuscolo, args=("indirizzo",))
         c1, c2 = st.columns(2)
         with c1:
@@ -684,10 +670,6 @@ from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.units import mm
 from reportlab.lib.pagesizes import A4
 
-st.divider()
-st.header("Allegato al business plan · PDF e stampa")
-st.caption("Documento preliminare con sezioni energetica ed economico-finanziaria, senza grafici.")
-
 def _fmt_num(v):
     return f"{float(v):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
@@ -864,11 +846,44 @@ def genera_html_stampa():
     <p style="font-size:10px">Simulazione indicativa. Verificare ipotesi tecniche, contrattuali e fiscali.</p>
     </body></html>"""
 
-col_pdf, col_stampa = st.columns(2)
-with col_pdf:
-    st.download_button("Scarica PDF (tabelle complete)", genera_pdf(), file_name="Eureka_Allegato_Business_Plan.pdf",
-                       mime="application/pdf", use_container_width=True)
-with col_stampa:
-    st.download_button("Scarica versione per stampa", genera_html_stampa().encode("utf-8"),
-                       file_name="Eureka_Stampa.html", mime="text/html", use_container_width=True)
-st.caption("Per stampare: apri il file HTML scaricato nel browser e premi Stampa. Impaginazione A3 orizzontale per leggibilità.")
+def nome_file_cliente():
+    nome = st.session_state.get("azienda", "").strip()
+    nome = unicodedata.normalize("NFKD", nome)
+    nome = "".join(c for c in nome if not unicodedata.combining(c))
+    nome = re.sub(r"[^A-Za-z0-9_-]+", "_", nome).strip("_-")
+    return (nome[:90] or "CLIENTE_SENZA_NOME")
+
+with documenti:
+    st.header("💾 📄 🖨️ Archivio e documenti")
+    st.markdown("#### 1) 💾 Salva o riapri una simulazione")
+    st.caption("Salva i dati sul computer in formato JSON e riaprili in seguito, "
+               "comprese le aliquote eventualmente modificate.")
+    col_salva, col_apri = st.columns(2)
+    with col_salva:
+        st.download_button("💾 Salva simulazione", data=esporta_simulazione(),
+                           file_name=f"{nome_file_cliente()}.json", mime="application/json",
+                           use_container_width=True)
+    with col_apri:
+        st.file_uploader("Seleziona il file della simulazione (.json)",
+                         type=["json"], key="file_simulazione", max_upload_size=200)
+        st.button("📂 Apri simulazione", on_click=carica_simulazione,
+                  use_container_width=True)
+    if "esito_caricamento" in st.session_state:
+        livello, messaggio = st.session_state.pop("esito_caricamento")
+        (st.success if livello == "success" else st.error)(messaggio)
+
+    st.divider()
+    st.markdown("#### 2) 📄 🖨️ Allegato al business plan · PDF e stampa")
+    st.caption("Documento preliminare con sezioni energetica ed economico-finanziaria, "
+               "senza grafici.")
+    col_pdf, col_stampa = st.columns(2)
+    with col_pdf:
+        st.download_button("📄 Scarica PDF (tabelle complete)", genera_pdf(),
+                           file_name=f"{nome_file_cliente()}_Business_Plan.pdf",
+                           mime="application/pdf", use_container_width=True)
+    with col_stampa:
+        st.download_button("🖨️ Scarica versione per stampa", genera_html_stampa().encode("utf-8"),
+                           file_name=f"{nome_file_cliente()}_Stampa.html",
+                           mime="text/html", use_container_width=True)
+    st.caption("Per stampare: apri il file HTML scaricato nel browser e premi Stampa. "
+               "Impaginazione A3 orizzontale per leggibilità.")
