@@ -101,10 +101,6 @@ def calcola_coefficiente_fiscale(forma, regione, add_com):
 # =========================================================
 # SIDEBAR: INPUT GUIDATI
 # =========================================================
-st.sidebar.markdown("# EUREKA SRL")
-st.sidebar.caption("EUREKA SRL · SOCIETÀ BENEFIT")
-st.sidebar.caption("Simulatore di convenienza fotovoltaica")
-st.sidebar.text_input("Referente commerciale Eureka", key="referente_commerciale")
 if st.sidebar.button("↺  Ripristina tutti i dati", use_container_width=True):
     reset_dati()
 st.sidebar.divider()
@@ -214,12 +210,30 @@ df_flussi["Cumulato (€)"] = df_flussi["Flusso netto (€)"].cumsum()
 # AREA PRINCIPALE
 # =========================================================
 cliente = st.session_state.azienda.strip() or "Nuova simulazione"
-st.markdown(f"""
-<div class="hero">
-  <h1>☀️ Simulatore fotovoltaico</h1>
-  <p>Analisi economica del noleggio operativo · {html_escape(cliente)}</p>
-</div>
+# Intestazione compatta: informazioni a sinistra, referente commerciale a destra.
+st.markdown("""
+<style>
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.eureka-hero-marker) {
+    background:#1c2935;
+    border:1px solid #435163;
+    border-radius:16px;
+}
+.eureka-hero-title {font-size:1.8rem; font-weight:750; color:#fff; line-height:1.25; margin:0 0 6px;}
+.eureka-hero-subtitle {font-size:.95rem; color:#d9e0e8; margin:0;}
+</style>
 """, unsafe_allow_html=True)
+with st.container(border=True):
+    hero_sx, hero_dx = st.columns([2.3, 1], gap="large", vertical_alignment="center")
+    with hero_sx:
+        st.markdown(
+            '<div class="eureka-hero-marker">'
+            '<div class="eureka-hero-title">☀️ Simulatore fotovoltaico</div>'
+            f'<p class="eureka-hero-subtitle">Analisi economica del noleggio operativo · {html_escape(cliente)}</p>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+    with hero_dx:
+        st.text_input("Referente Commerciale", key="referente_commerciale", placeholder="Inserisci il referente")
 
 # KPI sintetici
 k1, k2, k3, k4 = st.columns(4)
