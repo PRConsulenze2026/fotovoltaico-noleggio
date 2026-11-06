@@ -150,8 +150,8 @@ def mostra_tabelle_aliquote():
     st.caption("Le variazioni si applicano ai calcoli della sessione corrente. "
                "La protezione impedisce la modifica accidentale, non è un controllo di accesso.")
 
-def euro(value):
-    return f"€ {value:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+def euro(value, decimali=2):
+    return f"€ {value:,.{decimali}f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 def numero(value, decimali=2):
     return f"{value:,.{decimali}f}".replace(",", "X").replace(".", ",").replace("X", ".")
@@ -477,7 +477,7 @@ with energia:
         ),
         (
             ["", "Energia Autoconsumata", "Costo Energia Attualmente Pagata in kWh", "€."],
-            ["Risparmio in Autoconsumo", numero(energia_autoconsumata), euro(costo_energia), euro(risparmio_autoconsumo)],
+            ["Risparmio in Autoconsumo", numero(energia_autoconsumata), euro(costo_energia, 5), euro(risparmio_autoconsumo)],
         ),
         (
             ["", "Produzione Media Annuale", "Cessione EE/Produzione di Energia in %", "kWh"],
@@ -485,7 +485,7 @@ with energia:
         ),
         (
             ["", "Energia Venduta", "Prezzo Energia Venduta in kWh", "€."],
-            ["Ricavo dalla Vendita", numero(energia_venduta), euro(prezzo_vendita), euro(ricavo_vendita)],
+            ["Ricavo dalla Vendita", numero(energia_venduta), euro(prezzo_vendita, 5), euro(ricavo_vendita)],
         ),
         (
             ["", "Risparmio in Autoconsumo", "Ricavo dalla Vendita", "€."],
